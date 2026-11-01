@@ -147,7 +147,8 @@ export interface AIMessage {
 
 export type AccountFilterType = 'couple' | 'personal' | 'all';
 
-export const isCoupleTransaction = (t: { account_id?: string; account_name?: string }): boolean => {
+export const isCoupleTransaction = (t?: { account_id?: string; account_name?: string } | null): boolean => {
+  if (!t) return true;
   const acc = (t.account_id || t.account_name || '').trim().toLowerCase();
   if (
     acc.includes('personal') || 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Scale, Plus, TrendingDown, TrendingUp, History, Lock, Shield, Check } from 'lucide-react';
+import { X, Scale, Plus, TrendingDown, TrendingUp, History, Lock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { HealthRecord } from '../types';
 
@@ -26,7 +26,6 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
   const [height, setHeight] = useState<string>(activeUser === 'โจ' ? '175' : '160');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState<string>('');
-  const [isPrivate, setIsPrivate] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   if (!isOpen) return null;
@@ -83,7 +82,7 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
       };
 
       await onSaveHealthRecord(newRecord);
-      confetti({ particleCount: 40, spread: 50, origin: { y: 0.6 } });
+      confetti({ particleCount: 35, spread: 45, origin: { y: 0.6 } });
       setShowAddForm(false);
       setWeight('');
       setNote('');
@@ -93,50 +92,52 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
   };
 
   const content = (
-    <div className="space-y-4">
-      {/* User Switcher (โจ / ตาล) */}
-      <div className="grid grid-cols-2 p-1 rounded-2xl bg-sky-50/90 border border-sky-100">
+    <div className="space-y-2.5">
+      {/* Compact User Switcher (โจ / ตาล) */}
+      <div className="grid grid-cols-2 p-0.5 rounded-xl bg-sky-50 border border-sky-100 shadow-2xs">
         <button
+          type="button"
           onClick={() => setActiveUser('โจ')}
-          className={`py-2 rounded-xl text-xs font-bold transition-all ${
+          className={`py-1 rounded-lg text-xs font-bold transition-all ${
             activeUser === 'โจ'
-              ? 'bg-sky-500 text-white shadow-cute'
+              ? 'bg-sky-500 text-white shadow-2xs'
               : 'text-navy-muted hover:text-navy-text'
           }`}
         >
-          👦 สุขภาพของโจ
+          👦 โจ
         </button>
         <button
+          type="button"
           onClick={() => setActiveUser('ตาล')}
-          className={`py-2 rounded-xl text-xs font-bold transition-all ${
+          className={`py-1 rounded-lg text-xs font-bold transition-all ${
             activeUser === 'ตาล'
-              ? 'bg-pink-500 text-white shadow-cute'
+              ? 'bg-pink-500 text-white shadow-2xs'
               : 'text-navy-muted hover:text-navy-text'
           }`}
         >
-          👧 สุขภาพของตาล
+          👧 ตาล
         </button>
       </div>
 
       {/* Privacy Notice */}
-      <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+      <div className="flex items-center justify-between text-[10px] text-slate-400 px-1">
         <span className="flex items-center gap-1">
-          <Lock className="w-3 h-3 text-emerald-600" />
-          <span>ข้อมูลสุขภาพเป็นข้อมูลส่วนบุคคล</span>
+          <Lock className="w-2.5 h-2.5 text-emerald-600" />
+          <span>ข้อมูลส่วนบุคคล</span>
         </span>
-        <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+        <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.2 rounded-full border border-emerald-200">
           🔒 เฉพาะคุณเห็น
         </span>
       </div>
 
       {/* Health Summary Dashboard Card */}
       {latestRecord ? (
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-pink-50/90 via-rose-50/90 to-amber-50/90 border border-pink-200/80 shadow-sm relative overflow-hidden">
+        <div className="p-3 rounded-2xl bg-gradient-to-br from-pink-50/90 via-rose-50/90 to-amber-50/90 border border-pink-200/80 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-rose-800">น้ำหนักล่าสุด ({latestRecord.record_date})</p>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <h3 className="text-3xl font-black text-navy-text">
+              <p className="text-[10px] font-semibold text-rose-800">น้ำหนักล่าสุด ({latestRecord.record_date})</p>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <h3 className="text-2xl font-black text-navy-text">
                   {latestRecord.weight_kg}
                 </h3>
                 <span className="text-xs font-bold text-navy-muted">กก.</span>
@@ -145,23 +146,23 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
 
             {/* BMI Pill */}
             <div className="text-right">
-              <span className="text-[11px] font-semibold text-slate-500">BMI ผู้ใหญ่</span>
-              <p className="text-xl font-black text-navy-text">{latestRecord.bmi}</p>
-              <span className={`inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full ${bmiCategory.bg} ${bmiCategory.color}`}>
+              <span className="text-[10px] font-semibold text-slate-500">BMI ผู้ใหญ่</span>
+              <p className="text-lg font-black text-navy-text leading-tight">{latestRecord.bmi}</p>
+              <span className={`inline-block text-[9px] font-bold px-2 py-0.2 rounded-full ${bmiCategory.bg} ${bmiCategory.color}`}>
                 {bmiCategory.label}
               </span>
             </div>
           </div>
 
           {/* Visual BMI Bar Gauge */}
-          <div className="mt-3 pt-2.5 border-t border-pink-200/60">
-            <div className="flex items-center justify-between text-[9px] font-bold text-slate-500 mb-1">
+          <div className="mt-2 pt-1.5 border-t border-pink-200/60">
+            <div className="flex items-center justify-between text-[8px] font-bold text-slate-400 mb-0.5">
               <span className="text-sky-600">ผอม (&lt;18.5)</span>
               <span className="text-emerald-600">สมส่วน (18.5-22.9)</span>
               <span className="text-amber-600">ท้วม (23-24.9)</span>
               <span className="text-rose-600">อ้วน (≥25)</span>
             </div>
-            <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden flex">
+            <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden flex">
               <div className="w-[25%] bg-sky-400" title="ผอม" />
               <div className="w-[35%] bg-emerald-400" title="สมส่วน" />
               <div className="w-[18%] bg-amber-400" title="ท้วม" />
@@ -171,8 +172,8 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
 
           {/* Change difference */}
           {previousRecord && (
-            <div className="mt-3 pt-2.5 border-t border-pink-200/60 flex items-center justify-between text-xs font-semibold">
-              <span className="text-slate-600">เทียบกับครั้งก่อน:</span>
+            <div className="mt-2 pt-1.5 border-t border-pink-200/60 flex items-center justify-between text-[11px] font-semibold">
+              <span className="text-slate-600">เทียบครั้งก่อน:</span>
               <span
                 className={`flex items-center gap-1 font-bold ${
                   weightDiff < 0 ? 'text-emerald-600' : weightDiff > 0 ? 'text-rose-600' : 'text-slate-600'
@@ -180,12 +181,12 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
               >
                 {weightDiff < 0 ? (
                   <>
-                    <TrendingDown className="w-4 h-4" />
+                    <TrendingDown className="w-3.5 h-3.5" />
                     <span>ลดลง {Math.abs(weightDiff)} กก. 👏</span>
                   </>
                 ) : weightDiff > 0 ? (
                   <>
-                    <TrendingUp className="w-4 h-4" />
+                    <TrendingUp className="w-3.5 h-3.5" />
                     <span>เพิ่มขึ้น +{weightDiff} กก.</span>
                   </>
                 ) : (
@@ -196,40 +197,41 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
           )}
         </div>
       ) : (
-        <div className="p-5 rounded-3xl bg-sky-50/90 text-center border border-sky-100">
+        <div className="p-3.5 rounded-2xl bg-sky-50/90 text-center border border-sky-100">
           <p className="text-xs font-bold text-navy-text">ยังไม่มีข้อมูลน้ำหนักของคุณ{activeUser}</p>
-          <p className="text-[11px] text-navy-muted mt-0.5">กดปุ่มด้านล่างเพื่อเริ่มบันทึกครั้งแรกได้เลยค่ะ</p>
+          <p className="text-[10px] text-navy-muted mt-0.5">กดปุ่มด้านล่างเพื่อเริ่มบันทึกครั้งแรกได้เลยค่ะ</p>
         </div>
       )}
 
       {/* Add Record Button or Form */}
       {!showAddForm ? (
         <button
+          type="button"
           onClick={() => setShowAddForm(true)}
-          className="w-full py-3 rounded-2xl bg-pink-400 hover:bg-pink-500 text-white font-extrabold text-xs shadow-cute flex items-center justify-center gap-1.5 active:scale-98 transition-all"
+          className="w-full py-2 rounded-xl bg-pink-400 hover:bg-pink-500 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-1.5 active:scale-98 transition-all"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
           <span>+ บันทึกน้ำหนักวันนี้</span>
         </button>
       ) : (
-        <form onSubmit={handleSubmit} className="p-4 rounded-3xl bg-pink-50/80 border border-pink-200 space-y-3">
+        <form onSubmit={handleSubmit} className="p-3 rounded-2xl bg-pink-50/80 border border-pink-200 space-y-2 animate-fadeIn">
           <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold text-navy-text flex items-center gap-1.5">
-              <Scale className="w-4 h-4 text-pink-600" />
+            <h4 className="text-xs font-bold text-navy-text flex items-center gap-1">
+              <Scale className="w-3.5 h-3.5 text-pink-600" />
               <span>บันทึกน้ำหนักส่วนตัว</span>
             </h4>
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
-              className="text-xs text-slate-500 hover:text-slate-800 font-semibold"
+              className="text-[11px] text-slate-500 hover:text-slate-800 font-semibold"
             >
               ยกเลิก
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[11px] font-bold text-navy-text mb-1">
+              <label className="block text-[10px] font-bold text-navy-text mb-0.5">
                 น้ำหนัก (กก.) *
               </label>
               <input
@@ -240,14 +242,14 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
                 placeholder="เช่น 68.5"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
-                className="w-full text-sm font-black p-2.5 rounded-xl bg-white border border-pink-200 text-navy-text focus:outline-none focus:border-pink-400"
+                className="w-full text-xs font-black p-2 rounded-xl bg-white border border-pink-200 text-navy-text focus:outline-none focus:border-pink-400"
                 required
                 autoFocus
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-navy-text mb-1">
+              <label className="block text-[10px] font-bold text-navy-text mb-0.5">
                 ส่วนสูง (ซม.)
               </label>
               <input
@@ -257,28 +259,28 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
                 max="250"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
-                className="w-full text-sm font-bold p-2.5 rounded-xl bg-white border border-pink-200 text-navy-text focus:outline-none focus:border-pink-400"
+                className="w-full text-xs font-bold p-2 rounded-xl bg-white border border-pink-200 text-navy-text focus:outline-none focus:border-pink-400"
                 required
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-[11px] font-bold text-navy-text mb-1">
+              <label className="block text-[10px] font-bold text-navy-text mb-0.5">
                 วันที่บันทึก
               </label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full text-xs p-2 rounded-xl bg-white border border-slate-200 focus:outline-none"
+                className="w-full text-xs p-1.5 rounded-xl bg-white border border-slate-200 focus:outline-none"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-navy-text mb-1">
+              <label className="block text-[10px] font-bold text-navy-text mb-0.5">
                 หมายเหตุ (ถ้ามี)
               </label>
               <input
@@ -286,7 +288,7 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
                 placeholder="เช่น ชั่งตอนเช้า"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full text-xs p-2 rounded-xl bg-white border border-slate-200 focus:outline-none"
+                className="w-full text-xs p-1.5 rounded-xl bg-white border border-slate-200 focus:outline-none"
               />
             </div>
           </div>
@@ -294,7 +296,7 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs shadow-cute active:scale-98 transition-all"
+            className="w-full py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs shadow-xs active:scale-98 transition-all"
           >
             {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกน้ำหนัก'}
           </button>
@@ -302,25 +304,25 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
       )}
 
       {/* Weight History Card */}
-      <div className="p-4 rounded-3xl bg-white/90 border border-slate-100 shadow-cute">
-        <h4 className="text-xs font-bold text-navy-text flex items-center gap-1.5 mb-2.5">
-          <History className="w-4 h-4 text-sky-600" />
-          <span>ประวัติน้ำหนักย้อนหลัง ({userRecords.length} ครั้ง)</span>
+      <div className="p-2.5 rounded-2xl bg-white/90 border border-slate-100 shadow-2xs">
+        <h4 className="text-[11px] font-bold text-navy-text flex items-center gap-1 mb-1.5">
+          <History className="w-3 h-3 text-sky-600" />
+          <span>ประวัติย้อนหลัง ({userRecords.length} ครั้ง)</span>
         </h4>
 
-        <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 rounded-2xl border border-slate-100">
+        <div className="max-h-24 overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100 scrollbar-none">
           {userRecords.length === 0 ? (
-            <p className="p-4 text-center text-xs text-slate-400">ยังไม่มีประวัติการบันทึก</p>
+            <p className="p-2.5 text-center text-[10px] text-slate-400">ยังไม่มีประวัติการบันทึก</p>
           ) : (
-            userRecords.slice(0, 15).map((r) => (
-              <div key={r.health_id} className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50 transition-colors">
+            userRecords.slice(0, 10).map((r) => (
+              <div key={r.health_id} className="p-1.5 flex items-center justify-between text-[11px] hover:bg-slate-50 transition-colors">
                 <div>
                   <span className="font-bold text-navy-text">{r.record_date}</span>
-                  {r.note && <span className="text-[10px] text-navy-muted ml-2">({r.note})</span>}
+                  {r.note && <span className="text-[9px] text-navy-muted ml-1.5">({r.note})</span>}
                 </div>
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-1.5">
                   <span className="font-extrabold text-navy-text">{r.weight_kg} กก.</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 font-semibold">
                     BMI {r.bmi}
                   </span>
                 </div>
@@ -335,17 +337,17 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
   // In inline tab mode: render directly inside Dashboard container
   if (isInline) {
     return (
-      <div className="space-y-4 px-4 pb-28">
-        <div className="glass-panel rounded-3xl p-4 shadow-cute border border-white/80">
+      <div className="space-y-2.5 px-3 pb-24">
+        <div className="glass-panel rounded-2xl p-2.5 shadow-xs border border-white/80">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="text-2xl">⚖️</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">⚖️</span>
               <div>
-                <h2 className="text-base font-extrabold text-navy-text">บันทึกสุขภาพ & ติดตามน้ำหนัก</h2>
-                <p className="text-xs text-navy-muted">คำนวณ BMI และติดตามพัฒนาการสุขภาพคู่รัก</p>
+                <h2 className="text-sm font-extrabold text-navy-text">บันทึกสุขภาพ & ติดตามน้ำหนัก</h2>
+                <p className="text-[10px] text-navy-muted">คำนวณ BMI และติดตามสุขภาพส่วนตัว</p>
               </div>
             </div>
-            <span className="px-2.5 py-1 rounded-full bg-pink-100 text-pink-700 text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 text-[9px] font-bold">
               ส่วนบุคคล 🔒
             </span>
           </div>
@@ -355,24 +357,25 @@ export const HealthTrackerModal: React.FC<HealthTrackerModalProps> = ({
     );
   }
 
-  // Modal mode
+  // Modal mode: Fits mobile screen (< 480px height), no scrolling required
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-navy-text/45 backdrop-blur-sm animate-fadeIn">
-      <div className="w-full max-w-lg bg-white rounded-t-4xl sm:rounded-3xl p-5 shadow-cute-lg border border-white/80 max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-navy-text/50 backdrop-blur-xs animate-fadeIn">
+      <div className="w-full max-w-sm sm:max-w-md bg-white rounded-3xl p-3.5 shadow-cute-lg border border-white/90 max-h-[92vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-sky-100 mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">⚖️</span>
+        <div className="flex items-center justify-between pb-2 border-b border-sky-100 mb-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xl">⚖️</span>
             <div>
-              <h2 className="text-lg font-bold text-navy-text">บันทึกสุขภาพ & ติดตามน้ำหนัก</h2>
-              <p className="text-xs text-navy-muted">คำนวณ BMI และติดตามแนวโน้มส่วนตัว</p>
+              <h2 className="text-sm font-extrabold text-navy-text">บันทึกสุขภาพ & น้ำหนัก</h2>
+              <p className="text-[10px] text-navy-muted">คำนวณ BMI และติดตามน้ำหนักส่วนตัว</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-90 transition-all"
+            className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-90 transition-all"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 

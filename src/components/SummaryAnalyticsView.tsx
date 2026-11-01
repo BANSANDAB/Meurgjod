@@ -1,14 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Download, 
   Calendar, 
   PieChart as PieIcon, 
   BarChart as BarIcon, 
   TrendingUp, 
   ArrowDownLeft, 
   ArrowUpRight,
-  Filter,
-  FileSpreadsheet
+  Filter
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -47,7 +45,7 @@ interface SummaryAnalyticsViewProps {
 type PeriodFilter = 'today' | '7days' | 'this-month' | 'last-month' | '3months' | '6months' | 'this-year' | 'all';
 
 export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
-  transactions,
+  transactions = [],
   budgets,
   onBackToHome,
   onSelectTransaction,
@@ -56,17 +54,21 @@ export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
   const [period, setPeriod] = useState<PeriodFilter>('this-month');
   const [activeChartTab, setActiveChartTab] = useState<'donut' | 'bar' | 'line'>('donut');
 
-  // Filter transactions by account and period
+  // Filter transactions by account and period safely
   const filtered = useMemo(() => {
     const now = new Date();
-    return transactions.filter((t) => {
+    return (transactions || []).filter((t) => {
+      if (!t) return false;
+
       // Account filter
       if (accountFilter === 'couple' && !isCoupleTransaction(t)) return false;
       if (accountFilter === 'personal' && isCoupleTransaction(t)) return false;
 
       // Period filter
       if (period === 'all') return true;
+      if (!t.transaction_date) return false;
       const tDate = new Date(t.transaction_date);
+      if (isNaN(tDate.getTime())) return false;
 
       if (period === 'today') {
         return tDate.toDateString() === now.toDateString();
@@ -96,29 +98,30 @@ export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
       }
       return true;
     });
-  }, [transactions, period]);
+  }, [transactions, accountFilter, period]);
 
-  // Aggregate totals
+  // Aggregate totals safely
   const totalIncome = useMemo(() => {
-    return filtered
-      .filter((t) => t.transaction_type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
+    return (filtered || [])
+      .filter((t) => t?.transaction_type === 'income')
+      .reduce((sum, t) => sum + (Number(t?.amount) || 0), 0);
   }, [filtered]);
 
   const totalExpense = useMemo(() => {
-    return filtered
-      .filter((t) => t.transaction_type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+    return (filtered || [])
+      .filter((t) => t?.transaction_type === 'expense')
+      .reduce((sum, t) => sum + (Number(t?.amount) || 0), 0);
   }, [filtered]);
 
   const netBalance = totalIncome - totalExpense;
 
   // Category breakdown for Donut Chart
   const categoryBreakdown = useMemo(() => {
-    const expenses = filtered.filter((t) => t.transaction_type === 'expense');
+    const expenses = (filtered || []).filter((t) => t?.transaction_type === 'expense');
     const map: { [key: string]: number } = {};
     for (const t of expenses) {
-      map[t.category] = (map[t.category] || 0) + t.amount;
+      const cat = t?.category || 'รายจ่ายอื่นๆ';
+      map[cat] = (map[cat] || 0) + (Number(t?.amount) || 0);
     }
     const sorted = Object.entries(map)
       .map(([name, amount]) => ({ name, amount }))
@@ -126,22 +129,20 @@ export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
     return sorted;
   }, [filtered]);
 
-  // Donut Chart Data
+  // Donut Chart Data (Compact sizing)
   const donutData = {
-    labels: categoryBreakdown.slice(0, 7).map((c) => c.name),
+    labels: categoryBreakdown.slice(0, 5).map((c) => c.name),
     datasets: [
       {
-        data: categoryBreakdown.slice(0, 7).map((c) => c.amount),
+        data: categoryBreakdown.slice(0, 5).map((c) => c.amount),
         backgroundColor: [
           '#FF6475',
           '#FBBF24',
           '#38BDF8',
           '#A78BFA',
           '#34D399',
-          '#F472B6',
-          '#94A3B8',
         ],
-        borderWidth: 2,
+        borderWidth: 1.5,
         borderColor: '#ffffff',
       },
     ],
@@ -155,104 +156,81 @@ export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
         label: 'รายรับ (Income)',
         data: [totalIncome],
         backgroundColor: '#10B981',
-        borderRadius: 12,
+        borderRadius: 8,
       },
       {
         label: 'รายจ่าย (Expense)',
         data: [totalExpense],
         backgroundColor: '#FF6475',
-        borderRadius: 12,
+        borderRadius: 8,
       },
     ],
   };
 
-  // Line Chart Data (Trend of Balance over sorted transactions)
+  // Line Chart Data
   const lineData = useMemo(() => {
-    const sortedChronological = [...filtered].sort(
-      (a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime()
-    );
+    const sortedChronological = [...(filtered || [])].sort((a, b) => {
+      const tA = a?.transaction_date ? new Date(a.transaction_date).getTime() : 0;
+      const tB = b?.transaction_date ? new Date(b.transaction_date).getTime() : 0;
+      return tA - tB;
+    });
     let running = 0;
     const labels: string[] = [];
     const balances: number[] = [];
 
     sortedChronological.forEach((t) => {
-      running += t.transaction_type === 'income' ? t.amount : -t.amount;
-      const d = new Date(t.transaction_date);
-      labels.push(`${d.getDate()}/${d.getMonth() + 1}`);
-      balances.push(running);
+      const amt = Number(t?.amount) || 0;
+      running += t?.transaction_type === 'income' ? amt : -amt;
+      if (t?.transaction_date) {
+        const d = new Date(t.transaction_date);
+        if (!isNaN(d.getTime())) {
+          labels.push(`${d.getDate()}/${d.getMonth() + 1}`);
+          balances.push(running);
+        }
+      }
     });
 
     return {
-      labels: labels.slice(-15),
+      labels: labels.slice(-10),
       datasets: [
         {
-          label: 'ยอดเงินคงเหลือสะสม (บาท)',
-          data: balances.slice(-15),
+          label: 'คงเหลือ (บาท)',
+          data: balances.slice(-10),
           borderColor: '#0284C7',
           backgroundColor: 'rgba(125, 211, 252, 0.25)',
           fill: true,
           tension: 0.35,
-          pointRadius: 4,
+          pointRadius: 3,
           pointBackgroundColor: '#0284C7',
         },
       ],
     };
   }, [filtered]);
 
-  // Export CSV
-  const exportToCSV = () => {
-    const headers = ['ID', 'วันที่', 'ประเภท', 'หมวดหมู่', 'รายละเอียด', 'ผู้บันทึก', 'บัญชี', 'จำนวนเงิน (บาท)'];
-    const rows = filtered.map((t) => [
-      t.transaction_id,
-      t.transaction_date,
-      t.transaction_type === 'income' ? 'รายรับ' : 'รายจ่าย',
-      `"${t.category}"`,
-      `"${t.description.replace(/"/g, '""')}"`,
-      t.user_name || 'โจ',
-      t.account_id,
-      t.amount.toString(),
-    ]);
-
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `จดให้ไว_รายงาน_${period}_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
-    <div className="space-y-4 px-4 pb-28">
-      {/* Title & Filter Bar */}
-      <div className="glass-panel rounded-3xl p-4 shadow-cute border border-white/80">
-        <div className="flex items-center justify-between mb-3">
+    <div className="space-y-2.5 px-3 pb-24 text-navy-text">
+      {/* Title & Filter Bar (Export CSV button REMOVED) */}
+      <div className="glass-panel rounded-3xl p-3 shadow-cute border border-white/80 bg-white/85">
+        <div className="flex items-center justify-between mb-2">
           <div>
-            <h2 className="text-lg font-bold text-navy-text flex items-center gap-2">
+            <h2 className="text-sm font-extrabold text-navy-text flex items-center gap-1.5">
               <span>📊 สรุปยอดเงินและแนวโน้ม</span>
             </h2>
-            <p className="text-xs text-navy-muted">วิเคราะห์สัดส่วนรายรับ-รายจ่ายเงินคู่</p>
+            <p className="text-[10px] text-navy-muted">วิเคราะห์สัดส่วนรายรับ-รายจ่ายเงินคู่</p>
           </div>
-          <button
-            onClick={exportToCSV}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-cute active:scale-95 transition-all"
-            title="ดาวน์โหลดไฟล์ CSV"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
-          </button>
+          <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full">
+            {filtered.length} รายการ
+          </span>
         </div>
 
         {/* Account Filter Pills: เงินคู่ (Default) | ส่วนตัว | รวมทั้งหมด */}
-        <div className="flex items-center gap-1.5 p-1 bg-white/75 backdrop-blur-sm rounded-2xl border border-sky-100 shadow-xs mb-3">
+        <div className="flex items-center gap-1 p-0.5 bg-white/90 rounded-xl border border-sky-100 shadow-xs mb-2">
           <button
             type="button"
             onClick={() => setAccountFilter('couple')}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`flex-1 py-1 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
               accountFilter === 'couple'
-                ? 'bg-gradient-to-r from-sky-500 to-blue-500 text-white shadow-xs scale-[1.01]'
+                ? 'bg-gradient-to-r from-sky-500 to-blue-500 text-white shadow-xs'
                 : 'text-navy-muted hover:text-navy-text'
             }`}
           >
@@ -261,9 +239,9 @@ export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
           <button
             type="button"
             onClick={() => setAccountFilter('personal')}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`flex-1 py-1 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
               accountFilter === 'personal'
-                ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-xs scale-[1.01]'
+                ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-xs'
                 : 'text-navy-muted hover:text-navy-text'
             }`}
           >
@@ -272,18 +250,18 @@ export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
           <button
             type="button"
             onClick={() => setAccountFilter('all')}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`flex-1 py-1 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
               accountFilter === 'all'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs scale-[1.01]'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs'
                 : 'text-navy-muted hover:text-navy-text'
             }`}
           >
-            <span>🌐 รวมทั้งหมด</span>
+            <span>🌐 ทั้งหมด</span>
           </button>
         </div>
 
         {/* Time Period Filter Chips */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
           {[
             { key: 'all', label: 'ทั้งหมด' },
             { key: 'today', label: 'วันนี้' },
@@ -291,15 +269,14 @@ export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
             { key: 'this-month', label: 'เดือนนี้' },
             { key: 'last-month', label: 'เดือนก่อน' },
             { key: '3months', label: '3 เดือน' },
-            { key: '6months', label: '6 เดือน' },
             { key: 'this-year', label: 'ปีนี้' },
           ].map((item) => (
             <button
               key={item.key}
               onClick={() => setPeriod(item.key as PeriodFilter)}
-              className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 transition-all ${
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 transition-all ${
                 period === item.key
-                  ? 'bg-sky-500 text-white shadow-sm'
+                  ? 'bg-sky-500 text-white shadow-xs'
                   : 'bg-sky-50 text-slate-700 hover:bg-sky-100'
               }`}
             >
@@ -309,108 +286,108 @@ export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="p-3 rounded-2xl bg-white border border-sky-100 shadow-sm text-center">
-          <span className="text-[10px] font-semibold text-navy-muted">เงินคงเหลือ</span>
-          <p className="text-sm sm:text-base font-black text-navy-text truncate">
-            {netBalance.toLocaleString('th-TH', { minimumFractionDigits: 0 })}
+      {/* Summary KPI Cards (Compact Row) */}
+      <div className="grid grid-cols-3 gap-1.5">
+        <div className="p-2 rounded-2xl bg-white border border-sky-100 shadow-xs text-center">
+          <span className="text-[9px] font-semibold text-navy-muted block">คงเหลือ</span>
+          <p className={`text-xs sm:text-sm font-black truncate ${netBalance < 0 ? 'text-rose-600' : 'text-navy-text'}`}>
+            {(Number(netBalance) || 0).toLocaleString('th-TH', { minimumFractionDigits: 0 })}
           </p>
-          <span className="text-[9px] text-navy-muted">บาท</span>
+          <span className="text-[8px] text-navy-muted">บาท</span>
         </div>
 
-        <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-sm text-center">
-          <span className="text-[10px] font-bold text-emerald-800">รายรับรวม</span>
-          <p className="text-sm sm:text-base font-extrabold text-emerald-600 truncate">
-            +{totalIncome.toLocaleString('th-TH', { minimumFractionDigits: 0 })}
+        <div className="p-2 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-xs text-center">
+          <span className="text-[9px] font-bold text-emerald-800 block">รายรับ</span>
+          <p className="text-xs sm:text-sm font-extrabold text-emerald-600 truncate">
+            +{(Number(totalIncome) || 0).toLocaleString('th-TH', { minimumFractionDigits: 0 })}
           </p>
-          <span className="text-[9px] text-emerald-700">บาท</span>
+          <span className="text-[8px] text-emerald-700">บาท</span>
         </div>
 
-        <div className="p-3 rounded-2xl bg-rose-50 border border-rose-100 shadow-sm text-center">
-          <span className="text-[10px] font-bold text-rose-800">รายจ่ายรวม</span>
-          <p className="text-sm sm:text-base font-extrabold text-rose-600 truncate">
-            -{totalExpense.toLocaleString('th-TH', { minimumFractionDigits: 0 })}
+        <div className="p-2 rounded-2xl bg-rose-50 border border-rose-100 shadow-xs text-center">
+          <span className="text-[9px] font-bold text-rose-800 block">รายจ่าย</span>
+          <p className="text-xs sm:text-sm font-extrabold text-rose-600 truncate">
+            -{(Number(totalExpense) || 0).toLocaleString('th-TH', { minimumFractionDigits: 0 })}
           </p>
-          <span className="text-[9px] text-rose-700">บาท</span>
+          <span className="text-[8px] text-rose-700">บาท</span>
         </div>
       </div>
 
-      {/* Chart Section with Tabs */}
-      <div className="glass-panel rounded-3xl p-4 shadow-cute border border-white/80">
+      {/* Chart Section with Tabs (COMPACT SIZED CHART) */}
+      <div className="glass-panel rounded-3xl p-3 shadow-cute border border-white/80 bg-white/85">
         {/* Chart Sub Tabs */}
-        <div className="flex items-center justify-between pb-3 border-b border-sky-100">
-          <span className="text-xs font-bold text-navy-text">กราฟแสดงผล</span>
-          <div className="flex items-center gap-1 bg-sky-50 p-1 rounded-xl">
+        <div className="flex items-center justify-between pb-2 border-b border-sky-100">
+          <span className="text-xs font-bold text-navy-text">กราฟสรุป</span>
+          <div className="flex items-center gap-1 bg-sky-50 p-0.5 rounded-lg">
             <button
               onClick={() => setActiveChartTab('donut')}
-              className={`p-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`p-1 rounded-md text-xs font-bold transition-all ${
                 activeChartTab === 'donut' ? 'bg-white shadow text-sky-700' : 'text-slate-500'
               }`}
               title="สัดส่วนรายจ่าย"
             >
-              <PieIcon className="w-4 h-4" />
+              <PieIcon className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setActiveChartTab('bar')}
-              className={`p-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`p-1 rounded-md text-xs font-bold transition-all ${
                 activeChartTab === 'bar' ? 'bg-white shadow text-sky-700' : 'text-slate-500'
               }`}
-              title="เปรียบเทียบรายรับ-จ่าย"
+              title="เปรียบเทียบรับ-จ่าย"
             >
-              <BarIcon className="w-4 h-4" />
+              <BarIcon className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setActiveChartTab('line')}
-              className={`p-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`p-1 rounded-md text-xs font-bold transition-all ${
                 activeChartTab === 'line' ? 'bg-white shadow text-sky-700' : 'text-slate-500'
               }`}
               title="แนวโน้มเงินสะสม"
             >
-              <TrendingUp className="w-4 h-4" />
+              <TrendingUp className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Chart Render */}
-        <div className="py-4 flex items-center justify-center min-h-[220px]">
+        {/* Chart Render (REDUCED COMPACT HEIGHT: ~135px) */}
+        <div className="py-2 flex items-center justify-center h-36">
           {filtered.length === 0 ? (
             <p className="text-xs text-slate-400">ไม่มีข้อมูลในช่วงเวลานี้</p>
           ) : activeChartTab === 'donut' ? (
             categoryBreakdown.length > 0 ? (
-              <div className="w-56 h-56">
+              <div className="w-32 h-32 sm:w-36 sm:h-36">
                 <Doughnut
                   data={donutData}
                   options={{
                     plugins: {
-                      legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                      legend: { position: 'bottom', labels: { boxWidth: 6, font: { size: 9 }, padding: 4 } },
                     },
                     maintainAspectRatio: false,
                   }}
                 />
               </div>
             ) : (
-              <p className="text-xs text-slate-400">ยังไม่มีรายการรายจ่ายในช่วงเวลานี้</p>
+              <p className="text-xs text-slate-400">ยังไม่มีรายจ่ายในช่วงเวลานี้</p>
             )
           ) : activeChartTab === 'bar' ? (
-            <div className="w-full h-56">
+            <div className="w-full h-32">
               <Bar
                 data={barData}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
-                  plugins: { legend: { position: 'top' } },
+                  plugins: { legend: { display: false } },
                 }}
               />
             </div>
           ) : (
-            <div className="w-full h-56">
+            <div className="w-full h-32">
               <Line
                 data={lineData}
                 options={{
                   responsive: true,
                   maintainAspectRatio: false,
-                  plugins: { legend: { position: 'top' } },
+                  plugins: { legend: { display: false } },
                 }}
               />
             </div>
@@ -419,29 +396,29 @@ export const SummaryAnalyticsView: React.FC<SummaryAnalyticsViewProps> = ({
       </div>
 
       {/* Top Spending Categories List */}
-      <div className="glass-panel rounded-3xl p-4 shadow-cute border border-white/80">
-        <h3 className="text-xs font-bold text-navy-text mb-3">
-          🏆 หมวดหมู่ที่ใช้จ่ายสูงสุด ({categoryBreakdown.length} หมวด)
+      <div className="glass-panel rounded-3xl p-3 shadow-cute border border-white/80 bg-white/85">
+        <h3 className="text-xs font-bold text-navy-text mb-2">
+          🏆 สัดส่วนรายจ่าย ({categoryBreakdown.length} หมวด)
         </h3>
 
         {categoryBreakdown.length === 0 ? (
-          <p className="text-xs text-slate-400 py-3 text-center">ไม่มีข้อมูลรายจ่าย</p>
+          <p className="text-xs text-slate-400 py-2 text-center">ไม่มีข้อมูลรายจ่าย</p>
         ) : (
-          <div className="space-y-2">
-            {categoryBreakdown.slice(0, 6).map((cat, idx) => {
+          <div className="space-y-1.5">
+            {categoryBreakdown.slice(0, 4).map((cat, idx) => {
               const pct = totalExpense > 0 ? (cat.amount / totalExpense) * 100 : 0;
               return (
-                <div key={cat.name} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-semibold">
-                    <span className="text-navy-text">
-                      <span className="text-slate-400 font-bold mr-1.5">{idx + 1}.</span>
+                <div key={cat.name} className="space-y-0.5">
+                  <div className="flex items-center justify-between text-[11px] font-semibold">
+                    <span className="text-navy-text truncate max-w-[160px]">
+                      <span className="text-slate-400 font-bold mr-1">{idx + 1}.</span>
                       {cat.name}
                     </span>
                     <span className="font-extrabold text-rose-600">
-                      {cat.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ. ({pct.toFixed(0)}%)
+                      {(Number(cat.amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 0 })} บ. ({pct.toFixed(0)}%)
                     </span>
                   </div>
-                  <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="w-full h-1 rounded-full bg-slate-100 overflow-hidden">
                     <div
                       className="h-full bg-rose-400 rounded-full"
                       style={{ width: `${pct}%` }}

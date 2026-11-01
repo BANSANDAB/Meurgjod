@@ -17,8 +17,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index-BQxiaHOa.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-D-BQ8Z8j.css">
+
+    <!-- Anti-White-Screen Live Server & Static Hosting Handler -->
+    <script>
+      (function() {
+        // If opened via VS Code Live Server (port 5500) or static server without Vite dev server running
+        var isLiveServer = window.location.port === '5500';
+        var isFileProto = window.location.protocol === 'file:';
+        var isNonVite = window.location.port !== '5173' && !window.location.search.includes('vite');
+        if (isLiveServer || isFileProto || (isNonVite && !window.__vite_plugin_react_preamble_installed__)) {
+          // Only redirect if we are running in the unbundled root index.html
+          window.addEventListener('DOMContentLoaded', function() {
+            if (document.querySelector('script[src*="/src/main.tsx"]')) {
+              window.location.replace('./dist/index.html' + window.location.search + window.location.hash);
+            }
+          });
+          // Immediate check
+          if (window.location.pathname.endsWith('/index.html') && !window.location.pathname.includes('/dist/') && !window.location.pathname.includes('/docs/')) {
+            window.location.replace('./dist/index.html' + window.location.search + window.location.hash);
+          }
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-CTsMqAQI.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BQ7fAQpd.css">
   </head>
   <body class="font-prompt antialiased text-navy-text selection:bg-sky-200">
     <div id="root"></div>

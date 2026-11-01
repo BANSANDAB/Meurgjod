@@ -24,7 +24,6 @@ interface SettingsViewProps {
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
   onOpenThemeModal: () => void;
   onToggleUser: () => void;
-  onExportCSV: () => void;
   onResetData: () => void;
 }
 
@@ -34,7 +33,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateSettings,
   onOpenThemeModal,
   onToggleUser,
-  onExportCSV,
   onResetData,
 }) => {
   const [gasUrl, setGasUrl] = useState<string>(settings.gas_webapp_url || '');
@@ -248,19 +246,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Export & Reset */}
+      {/* Reset Cache */}
       <div className="glass-panel rounded-3xl p-4 shadow-cute border border-white/80 space-y-2">
-        <button
-          onClick={onExportCSV}
-          className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-sky-50 flex items-center justify-between text-xs font-bold text-navy-text border border-slate-200 active:scale-98 transition-all"
-        >
-          <div className="flex items-center gap-2.5">
-            <Download className="w-4 h-4 text-emerald-600" />
-            <span>สำรองข้อมูลออกเป็น CSV (Backup Data)</span>
-          </div>
-          <span className="text-slate-400">&gt;</span>
-        </button>
-
         <button
           onClick={() => {
             if (window.confirm('คุณต้องการรีเซ็ตข้อมูลแคชในเครื่องกลับเป็นค่าเริ่มต้นจาก Google Sheets ใช่หรือไม่?')) {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   BarChart3, 
   PieChart, 
@@ -23,100 +23,187 @@ import {
   Activity
 } from 'lucide-react';
 import { Transaction, AccountFilterType, isCoupleTransaction } from '../types';
+import { AllTransactionsModal } from './AllTransactionsModal';
 
 interface HomeDashboardProps {
   transactions: Transaction[];
   onOpenRecord: () => void;
-  onOpenWallet: () => void;
   onOpenHealth: () => void;
   onOpenOCR: () => void;
-  onOpenVoice: () => void;
-  onOpenBudget: () => void;
   onNavigateToSummary: () => void;
-  onNavigateToHistory: () => void;
   onSelectTransaction: (t: Transaction) => void;
+  onOpenWallet?: () => void;
+  onOpenBudget?: () => void;
 }
 
-// Icon helper
-const getCategoryIcon = (categoryName: string) => {
-  if (/ประกันรถ|ประกันยนต์|car insurance/i.test(categoryName)) return <Shield className="w-4 h-4 text-indigo-500" />;
-  if (/ค่าสุขภาพ|สุขภาพ/i.test(categoryName)) return <Activity className="w-4 h-4 text-emerald-500" />;
-  if (/อาหาร|ก๋วยเตี๋ยว|ข้าว|กิน/.test(categoryName)) return <Utensils className="w-4 h-4 text-rose-500" />;
-  if (/เซเว่น|7-11|cj/i.test(categoryName)) return <Store className="w-4 h-4 text-amber-500" />;
-  if (/ตลาด|ของใช้|ซื้อของ/i.test(categoryName)) return <ShoppingCart className="w-4 h-4 text-orange-500" />;
-  if (/น้ำมัน|เดินทาง|bts|mrt/i.test(categoryName)) return <Car className="w-4 h-4 text-sky-500" />;
-  if (/ซัก|อบผ้า/i.test(categoryName)) return <Shirt className="w-4 h-4 text-purple-500" />;
-  if (/กาแฟ|คาเฟ่|ขนม/i.test(categoryName)) return <Coffee className="w-4 h-4 text-pink-500" />;
-  if (/น้ำ|ไฟ|เน็ต/i.test(categoryName)) return <Zap className="w-4 h-4 text-blue-500" />;
-  if (/ยา|หมอ|รักษา/i.test(categoryName)) return <HeartPulse className="w-4 h-4 text-red-500" />;
-  if (/เงินเดือน|ค่าจ้าง/i.test(categoryName)) return <Coins className="w-4 h-4 text-emerald-500" />;
-  if (/เงินคู่|รับเงินคู่/i.test(categoryName)) return <HeartHandshake className="w-4 h-4 text-teal-500" />;
-  if (/โบนัส|ของขวัญ/i.test(categoryName)) return <Gift className="w-4 h-4 text-green-500" />;
-  return <FileText className="w-4 h-4 text-slate-500" />;
+// Icon helper with safe string checking
+const getCategoryIcon = (categoryName?: string) => {
+  const name = categoryName || '';
+  if (/ประกันรถ|ประกันยนต์|car insurance/i.test(name)) return <Shield className="w-3.5 h-3.5 text-indigo-500" />;
+  if (/ค่าสุขภาพ|สุขภาพ/i.test(name)) return <Activity className="w-3.5 h-3.5 text-emerald-500" />;
+  if (/อาหาร|ก๋วยเตี๋ยว|ข้าว|กิน/.test(name)) return <Utensils className="w-3.5 h-3.5 text-rose-500" />;
+  if (/เซเว่น|7-11|cj/i.test(name)) return <Store className="w-3.5 h-3.5 text-amber-500" />;
+  if (/ตลาด|ของใช้|ซื้อของ/i.test(name)) return <ShoppingCart className="w-3.5 h-3.5 text-orange-500" />;
+  if (/น้ำมัน|เดินทาง|bts|mrt/i.test(name)) return <Car className="w-3.5 h-3.5 text-sky-500" />;
+  if (/ซัก|อบผ้า/i.test(name)) return <Shirt className="w-3.5 h-3.5 text-purple-500" />;
+  if (/กาแฟ|คาเฟ่|ขนม/i.test(name)) return <Coffee className="w-3.5 h-3.5 text-pink-500" />;
+  if (/น้ำ|ไฟ|เน็ต/i.test(name)) return <Zap className="w-3.5 h-3.5 text-blue-500" />;
+  if (/ยา|หมอ|รักษา/i.test(name)) return <HeartPulse className="w-3.5 h-3.5 text-red-500" />;
+  if (/เงินเดือน|ค่าจ้าง/i.test(name)) return <Coins className="w-3.5 h-3.5 text-emerald-500" />;
+  if (/เงินคู่|รับเงินคู่/i.test(name)) return <HeartHandshake className="w-3.5 h-3.5 text-teal-500" />;
+  if (/โบนัส|ของขวัญ/i.test(name)) return <Gift className="w-3.5 h-3.5 text-green-500" />;
+  return <FileText className="w-3.5 h-3.5 text-slate-500" />;
 };
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
-  transactions,
+  transactions = [],
   onOpenRecord,
   onOpenWallet,
   onOpenHealth,
   onOpenOCR,
-  onOpenVoice,
   onOpenBudget,
   onNavigateToSummary,
-  onNavigateToHistory,
   onSelectTransaction,
 }) => {
+  // Thai month names helper
+  const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const now = new Date();
+  const curRealMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
   // Account filter: 'couple' (Default) | 'personal' | 'all'
   const [accountFilter, setAccountFilter] = useState<AccountFilterType>('couple');
-  // Period filter: 'current-month' (Default) | 'last-month' | 'all'
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('current-month');
+  // Period filter: always default to actual current calendar month according to real-time date
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(curRealMonthKey);
+  // All transactions modal state
+  const [allTransactionsModalOpen, setAllTransactionsModalOpen] = useState<boolean>(false);
 
-  // Filter transactions based on account type and period
-  const filteredTransactions = useMemo(() => {
-    const now = new Date();
-    return transactions.filter((t) => {
-      // 1. Account Filter
+  // Transactions filtered safely by account
+  const accountTransactions = useMemo(() => {
+    return (transactions || []).filter((t) => {
+      if (!t) return false;
       if (accountFilter === 'couple' && !isCoupleTransaction(t)) return false;
       if (accountFilter === 'personal' && isCoupleTransaction(t)) return false;
-
-      // 2. Period Filter
-      if (selectedPeriod === 'all') return true;
-      const tDate = new Date(t.transaction_date);
-      if (selectedPeriod === 'current-month') {
-        return (
-          tDate.getFullYear() === now.getFullYear() &&
-          tDate.getMonth() === now.getMonth()
-        );
-      }
-      if (selectedPeriod === 'last-month') {
-        const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-        const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-        return tDate.getFullYear() === year && tDate.getMonth() === lastMonth;
-      }
       return true;
     });
-  }, [transactions, accountFilter, selectedPeriod]);
+  }, [transactions, accountFilter]);
 
-  // Calculate Balance, Income, Expense
-  const totalIncome = filteredTransactions
-    .filter((t) => t.transaction_type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
+  // Dynamically extract all months available in database
+  const availableMonths = useMemo(() => {
+    const monthMap = new Map<string, number>();
+    for (const t of accountTransactions) {
+      if (!t?.transaction_date) continue;
+      const d = new Date(t.transaction_date);
+      if (isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthMap.set(key, (monthMap.get(key) || 0) + 1);
+    }
+    // Also include current calendar month
+    const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (!monthMap.has(curKey)) {
+      monthMap.set(curKey, 0);
+    }
 
-  const totalExpense = filteredTransactions
-    .filter((t) => t.transaction_type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
+    // Sort descending (latest month first)
+    const sortedKeys = Array.from(monthMap.keys()).sort((a, b) => b.localeCompare(a));
+    return sortedKeys.map((key) => {
+      const [yStr, mStr] = key.split('-');
+      const y = parseInt(yStr, 10);
+      const m = parseInt(mStr, 10);
+      const mIdx = m - 1;
+      const count = monthMap.get(key) || 0;
+      const isCur = key === curKey;
+      const thaiName = thaiMonths[mIdx] || mStr;
+      const thaiYr = y + 543;
+      let label = `${thaiName} ${thaiYr}`;
+      if (isCur) {
+        label = `เดือนนี้ (${thaiName} ${thaiYr}${count > 0 ? ` • ${count} รายการ` : ''})`;
+      } else {
+        label = `${thaiName} ${thaiYr} (${count} รายการ)`;
+      }
+      return { key, label, count, isCur };
+    });
+  }, [accountTransactions]);
 
-  const netBalance = totalIncome - totalExpense;
+  // Always keep real-time current month as default
+  useEffect(() => {
+    if (!selectedPeriod) {
+      setSelectedPeriod(curRealMonthKey);
+    }
+  }, [curRealMonthKey, selectedPeriod]);
 
-  // Format Thai dates
-  const formatThaiDate = (dateStr: string) => {
+  // Balance calculation with Carry-Forward (ยกยอดจากเดือนก่อน)
+  const { filteredTransactions, carriedForwardBalance, periodIncome, periodExpense, netBalance, periodDisplayLabel } = useMemo(() => {
+    let carried = 0;
+    let periodList: Transaction[] = [];
+    let displayLabel = 'ช่วงเวลา';
+
+    if (selectedPeriod === 'all') {
+      carried = 0;
+      periodList = accountTransactions;
+      displayLabel = 'ทั้งหมด';
+    } else if (selectedPeriod && selectedPeriod.includes('-')) {
+      const [yearStr, monthStr] = selectedPeriod.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10); // 1-12
+      const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0);
+      const startOfNextMonth = new Date(year, month, 1, 0, 0, 0);
+
+      const mIdx = month - 1;
+      displayLabel = `${thaiMonths[mIdx]} ${year + 543}`;
+
+      // Prior transactions before this month (only for couple account; personal starts fresh)
+      if (accountFilter === 'couple') {
+        const prior = accountTransactions.filter((t) => {
+          if (!t?.transaction_date) return false;
+          const d = new Date(t.transaction_date);
+          return !isNaN(d.getTime()) && d < startOfMonth;
+        });
+        const priorInc = prior.filter((t) => t?.transaction_type === 'income').reduce((s, t) => s + (Number(t?.amount) || 0), 0);
+        const priorExp = prior.filter((t) => t?.transaction_type === 'expense').reduce((s, t) => s + (Number(t?.amount) || 0), 0);
+        carried = priorInc - priorExp;
+      } else {
+        // ยอดส่วนตัวให้เริ่มใหม่ ไม่นับของเก่า
+        carried = 0;
+      }
+
+      // Transactions in this month
+      periodList = accountTransactions.filter((t) => {
+        if (!t?.transaction_date) return false;
+        const d = new Date(t.transaction_date);
+        return !isNaN(d.getTime()) && d >= startOfMonth && d < startOfNextMonth;
+      });
+    } else {
+      periodList = accountTransactions;
+    }
+
+    const inc = periodList.filter((t) => t?.transaction_type === 'income').reduce((s, t) => s + (Number(t?.amount) || 0), 0);
+    const exp = periodList.filter((t) => t?.transaction_type === 'expense').reduce((s, t) => s + (Number(t?.amount) || 0), 0);
+    const net = (Number(carried) || 0) + inc - exp;
+
+    const sorted = [...periodList].sort((a, b) => {
+      const tA = a?.transaction_date ? new Date(a.transaction_date).getTime() : 0;
+      const tB = b?.transaction_date ? new Date(b.transaction_date).getTime() : 0;
+      return tB - tA;
+    });
+
+    return {
+      filteredTransactions: sorted,
+      carriedForwardBalance: carried,
+      periodIncome: inc,
+      periodExpense: exp,
+      netBalance: net,
+      periodDisplayLabel: displayLabel
+    };
+  }, [accountTransactions, selectedPeriod]);
+
+  // Format Thai dates safely
+  const formatThaiDate = (dateStr?: string) => {
     try {
+      if (!dateStr) return { day: '20', month: 'ต.ค.' };
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return { day: '20', month: 'ต.ค.' };
       const day = d.getDate().toString();
-      const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-      const month = thaiMonths[d.getMonth()];
+      const month = thaiMonths[d.getMonth()] || 'ต.ค.';
       return { day, month };
     } catch {
       return { day: '20', month: 'ต.ค.' };
@@ -124,50 +211,52 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   };
 
   return (
-    <div className="space-y-4 px-4 pb-28">
-      {/* SECTION 2: UNIFIED DASHBOARD CARD */}
-      <div className="glass-panel rounded-3xl p-4 shadow-cute relative overflow-hidden border border-white/80">
+    <div className="space-y-2.5 px-3 pb-24 text-navy-text">
+      {/* SECTION 1: UNIFIED DASHBOARD CARD */}
+      <div className="glass-panel rounded-3xl p-3 shadow-cute relative overflow-hidden border border-white/80 bg-white/85">
         {/* Soft background glow */}
-        <div className="absolute -top-16 -right-16 w-36 h-36 bg-sky-200/50 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-36 h-36 bg-blue-100/50 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -top-12 -right-12 w-28 h-28 bg-sky-200/50 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-12 -left-12 w-28 h-28 bg-blue-100/50 rounded-full blur-2xl pointer-events-none" />
 
-        {/* Dashboard Header & Period selector */}
-        <div className="flex items-center justify-between mb-2.5 relative z-10 gap-2">
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 rounded-xl bg-sky-500/15 flex items-center justify-center text-sky-600">
-              <BarChart3 className="w-5 h-5" />
+        {/* Dashboard Header & Dynamic Period selector */}
+        <div className="flex items-center justify-between mb-1.5 relative z-10 gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="w-6 h-6 rounded-lg bg-sky-500/15 flex items-center justify-center text-sky-600">
+              <BarChart3 className="w-3.5 h-3.5" />
             </div>
-            <span className="font-extrabold text-base text-navy-text tracking-wide">
-              Dashboard
+            <span className="font-extrabold text-xs text-navy-text tracking-wide">
+              แดชบอร์ดเงินคู่
             </span>
           </div>
 
           {/* Period Selector Dropdown */}
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 max-w-[190px]">
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="appearance-none bg-sky-50/95 text-navy-text text-xs font-bold pl-7 pr-7 py-1.5 rounded-full border border-sky-200/80 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 cursor-pointer"
+              className="appearance-none bg-sky-50 text-navy-text text-[11px] font-bold pl-6 pr-5 py-1 rounded-full border border-sky-200 shadow-xs focus:outline-none cursor-pointer truncate w-full"
             >
-              <option value="current-month">เดือนปัจจุบัน (ต.ค. 2569)</option>
-              <option value="last-month">เดือนที่แล้ว (ก.ย. 2569)</option>
-              <option value="all">สะสมทั้งหมด ({transactions.length} รายการ)</option>
+              {availableMonths.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
             </select>
-            <Calendar className="w-3.5 h-3.5 text-sky-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <span className="text-[10px] text-navy-muted absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+            <Calendar className="w-3 h-3 text-sky-500 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <span className="text-[8px] text-navy-muted absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
               ▼
             </span>
           </div>
         </div>
 
-        {/* Account Filter Pills: เงินคู่ (Default) | ส่วนตัว | รวมทั้งหมด */}
-        <div className="flex items-center gap-1.5 p-1 bg-white/75 backdrop-blur-sm rounded-2xl border border-sky-100 shadow-xs mb-3 relative z-10">
+        {/* Account Filter Pills: เงินคู่ (Default) | ส่วนตัว (ตัด 'ทั้งหมด' ออก) */}
+        <div className="grid grid-cols-2 gap-1 p-0.5 bg-white/90 rounded-xl border border-sky-100 shadow-xs mb-2 relative z-10">
           <button
             type="button"
             onClick={() => setAccountFilter('couple')}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`py-1 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
               accountFilter === 'couple'
-                ? 'bg-gradient-to-r from-sky-500 to-blue-500 text-white shadow-xs scale-[1.01]'
+                ? 'bg-gradient-to-r from-sky-500 to-blue-500 text-white shadow-xs'
                 : 'text-navy-muted hover:text-navy-text'
             }`}
           >
@@ -176,290 +265,241 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <button
             type="button"
             onClick={() => setAccountFilter('personal')}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+            className={`py-1 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
               accountFilter === 'personal'
-                ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-xs scale-[1.01]'
+                ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-xs'
                 : 'text-navy-muted hover:text-navy-text'
             }`}
           >
             <span>👤 ส่วนตัว</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setAccountFilter('all')}
-            className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
-              accountFilter === 'all'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs scale-[1.01]'
-                : 'text-navy-muted hover:text-navy-text'
-            }`}
-          >
-            <span>🌐 รวมทั้งหมด</span>
-          </button>
         </div>
 
-        {/* Income & Expense at Top (Compact & Small Text) */}
-        <div className="grid grid-cols-2 gap-2 mb-2.5 relative z-10">
-          {/* Income */}
-          <div className="px-3 py-2 rounded-2xl bg-emerald-50/90 border border-emerald-200/80 shadow-xs flex items-center justify-between">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <ArrowDownLeft className="w-3 h-3" />
+        {/* Main Balance Display (Prominent & Clear Centerpiece) */}
+        <div className="p-3 rounded-2xl bg-gradient-to-br from-sky-100/90 via-blue-50/90 to-indigo-50/90 border border-sky-200/90 shadow-xs flex items-center justify-between gap-2.5 mb-2 relative z-10">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-600 flex items-center justify-center shrink-0 shadow-inner">
+              <Wallet className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] font-bold text-navy-muted">
+                  {accountFilter === 'couple' ? 'ยอดเงินคู่คงเหลือ' : 'ยอดเงินส่วนตัวคงเหลือ'}
+                </span>
+                <span className="text-[9px] text-sky-800 font-extrabold bg-sky-200/70 px-1.5 py-0.2 rounded-full">
+                  {periodDisplayLabel}
+                </span>
               </div>
-              <span className="text-[11px] font-bold text-emerald-800">รายรับ</span>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <h3 className={`text-xl sm:text-2xl font-black tracking-tight ${netBalance < 0 ? 'text-rose-600' : 'text-navy-text'}`}>
+                  {(Number(netBalance) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+                <span className="text-xs font-black text-navy-text">บาท</span>
+              </div>
+              {/* Carry Forward Indicator: แสดงเฉพาะเงินคู่ ส่วนตัวเริ่มใหม่ไม่นับของเก่า */}
+              {accountFilter === 'couple' && (
+                <p className="text-[9px] text-sky-700 font-semibold mt-0.5">
+                  (ยอดยกมาจากเดือนก่อน: {carriedForwardBalance >= 0 ? '+' : ''}{(Number(carriedForwardBalance) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.)
+                </p>
+              )}
+              {accountFilter === 'personal' && (
+                <p className="text-[9px] text-purple-700 font-semibold mt-0.5">
+                  (ยอดส่วนตัวรอบเดือนนี้ ไม่นับยอดยกมา)
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="px-2 py-0.5 rounded-full bg-white/85 border border-sky-200 text-[9px] font-extrabold text-sky-700 shrink-0 shadow-xs">
+            {accountFilter === 'couple' ? '💕 เงินคู่' : '👤 ส่วนตัว'}
+          </div>
+        </div>
+
+        {/* Income & Expense at Bottom of Balance (Compact Chips) */}
+        <div className="grid grid-cols-2 gap-1.5 mb-2 relative z-10">
+          {/* Income */}
+          <div className="px-2 py-1 rounded-xl bg-emerald-50/90 border border-emerald-200/70 flex items-center justify-between">
+            <div className="flex items-center gap-1 min-w-0">
+              <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                <ArrowDownLeft className="w-2.5 h-2.5" />
+              </div>
+              <span className="text-[10px] font-bold text-emerald-800">รายรับ</span>
             </div>
             <div className="text-right shrink-0">
-              <span className="text-xs font-black text-emerald-600">
-                +{totalIncome.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span className="text-xs font-extrabold text-emerald-600">
+                +{(Number(periodIncome) || 0).toLocaleString('th-TH', { minimumFractionDigits: 0 })}
               </span>
-              <span className="text-[9px] text-emerald-700 font-semibold ml-0.5">บ.</span>
+              <span className="text-[8px] text-emerald-700 ml-0.5">บ.</span>
             </div>
           </div>
 
           {/* Expense */}
-          <div className="px-3 py-2 rounded-2xl bg-rose-50/90 border border-rose-200/80 shadow-xs flex items-center justify-between">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <ArrowUpRight className="w-3 h-3" />
+          <div className="px-2 py-1 rounded-xl bg-rose-50/90 border border-rose-200/70 flex items-center justify-between">
+            <div className="flex items-center gap-1 min-w-0">
+              <div className="w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0">
+                <ArrowUpRight className="w-2.5 h-2.5" />
               </div>
-              <span className="text-[11px] font-bold text-rose-800">รายจ่าย</span>
+              <span className="text-[10px] font-bold text-rose-800">รายจ่าย</span>
             </div>
             <div className="text-right shrink-0">
-              <span className="text-xs font-black text-rose-600">
-                -{totalExpense.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span className="text-xs font-extrabold text-rose-600">
+                -{(Number(periodExpense) || 0).toLocaleString('th-TH', { minimumFractionDigits: 0 })}
               </span>
-              <span className="text-[9px] text-rose-700 font-semibold ml-0.5">บ.</span>
+              <span className="text-[8px] text-rose-700 ml-0.5">บ.</span>
             </div>
-          </div>
-        </div>
-
-        {/* Main Balance Display (Prominent & Clear Centerpiece) */}
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-sky-100/95 via-blue-50/95 to-indigo-100/90 border-2 border-sky-200/90 shadow-cute flex items-center justify-between gap-3 mb-3 relative z-10">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-600 flex items-center justify-center shrink-0 shadow-inner">
-              <Wallet className="w-6 h-6" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-navy-muted flex items-center gap-1.5">
-                <span>
-                  {accountFilter === 'couple'
-                    ? 'ยอดเงินคู่คงเหลือ'
-                    : accountFilter === 'personal'
-                    ? 'ยอดเงินส่วนตัวคงเหลือ'
-                    : 'ยอดคงเหลือรวม'}
-                </span>
-                <span className="text-[10px] text-sky-700 font-extrabold bg-sky-200/70 px-2 py-0.5 rounded-full">
-                  {selectedPeriod === 'current-month' ? 'เดือนนี้' : selectedPeriod === 'last-month' ? 'เดือนก่อน' : 'ทั้งหมด'}
-                </span>
-              </p>
-              <div className="flex items-baseline gap-1.5 flex-wrap mt-0.5">
-                <h3 className={`text-2xl sm:text-3xl font-black tracking-tight drop-shadow-sm ${netBalance < 0 ? 'text-rose-600' : 'text-navy-text'}`}>
-                  {netBalance.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </h3>
-                <span className="text-sm font-black text-navy-text">บาท</span>
-              </div>
-            </div>
-          </div>
-          <div className="px-2.5 py-1 rounded-full bg-white/85 border border-sky-200 text-[10px] font-extrabold text-sky-700 shrink-0 shadow-xs">
-            {accountFilter === 'couple' ? '💕 เงินคู่' : accountFilter === 'personal' ? '👤 ส่วนตัว' : '🌐 ทั้งหมด'}
           </div>
         </div>
 
         {/* Dashboard Sub-Actions (Summary & History shortcuts) */}
-        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-sky-100/90 relative z-10">
+        <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-sky-100/90 relative z-10">
           <button
             onClick={onNavigateToSummary}
-            className="flex items-center justify-between p-2.5 rounded-2xl bg-amber-50/90 hover:bg-amber-100/90 border border-amber-200/80 shadow-sm active:scale-95 transition-all group min-w-0"
+            className="flex items-center justify-between p-1.5 rounded-xl bg-amber-50/90 hover:bg-amber-100/90 border border-amber-200/80 shadow-xs active:scale-95 transition-all group"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-amber-400/20 flex items-center justify-center text-amber-600 shrink-0">
-                <PieChart className="w-4 h-4" />
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-amber-400/20 flex items-center justify-center text-amber-600 shrink-0">
+                <PieChart className="w-3.5 h-3.5" />
               </div>
               <div className="text-left min-w-0">
-                <p className="text-xs font-bold text-navy-text truncate">สรุปยอดเงิน</p>
-                <p className="text-[10px] text-navy-muted truncate">ภาพรวมเงินคู่</p>
+                <p className="text-[11px] font-bold text-navy-text truncate">สรุปยอดเงิน</p>
+                <p className="text-[9px] text-navy-muted truncate">วิเคราะห์สัดส่วน</p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-navy-muted group-hover:translate-x-0.5 transition-transform shrink-0 ml-1" />
+            <ChevronRight className="w-3.5 h-3.5 text-navy-muted group-hover:translate-x-0.5 transition-transform shrink-0" />
           </button>
 
           <button
-            onClick={onNavigateToHistory}
-            className="flex items-center justify-between p-2.5 rounded-2xl bg-sky-50/90 hover:bg-sky-100/90 border border-sky-200/80 shadow-sm active:scale-95 transition-all group min-w-0"
+            onClick={() => setAllTransactionsModalOpen(true)}
+            className="flex items-center justify-between p-1.5 rounded-xl bg-sky-50/90 hover:bg-sky-100/90 border border-sky-200/80 shadow-xs active:scale-95 transition-all group"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-sky-400/20 flex items-center justify-center text-sky-600 shrink-0">
-                <BarChart3 className="w-4 h-4" />
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-sky-400/20 flex items-center justify-center text-sky-600 shrink-0">
+                <BarChart3 className="w-3.5 h-3.5" />
               </div>
               <div className="text-left min-w-0">
-                <p className="text-xs font-bold text-navy-text truncate">ดูย้อนหลัง</p>
-                <p className="text-[10px] text-navy-muted truncate">ตรวจประวัติ</p>
+                <p className="text-[11px] font-bold text-navy-text truncate">ดูย้อนหลัง</p>
+                <p className="text-[9px] text-navy-muted truncate">ตรวจประวัติ ({filteredTransactions.length})</p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-navy-muted group-hover:translate-x-0.5 transition-transform shrink-0 ml-1" />
+            <ChevronRight className="w-3.5 h-3.5 text-navy-muted group-hover:translate-x-0.5 transition-transform shrink-0" />
           </button>
         </div>
       </div>
 
-      {/* SECTION 3: QUICK FUNCTION BUTTONS GRID */}
-      <div className="space-y-3">
-        {/* Top 3 Cards Grid (Equal Heights, No Overlapping Badges) */}
-        <div className="grid grid-cols-3 gap-2.5">
-          {/* 1. Record Couple Finance */}
-          <button
-            onClick={onOpenRecord}
-            className="w-full aspect-[4/5] rounded-3xl overflow-hidden shadow-cute hover:shadow-cute-lg border border-white/80 active:scale-95 transition-all relative flex flex-col justify-end p-2 bg-gradient-to-b from-amber-100 to-amber-200 group"
-          >
-            <img
-              src="./assets/card-record.png"
-              alt="บันทึกเงินคู่"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform"
-            />
-          </button>
-
-          {/* 2. Wallet */}
-          <button
-            onClick={onOpenWallet}
-            className="w-full aspect-[4/5] rounded-3xl overflow-hidden shadow-cute hover:shadow-cute-lg border border-white/80 active:scale-95 transition-all relative flex flex-col justify-end p-2 bg-gradient-to-b from-sky-100 to-sky-200 group"
-          >
-            <img
-              src="./assets/card-wallet.png"
-              alt="กระเป๋าเงิน"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform"
-            />
-          </button>
-
-          {/* 3. Health Tracker */}
-          <button
-            onClick={onOpenHealth}
-            className="w-full aspect-[4/5] rounded-3xl overflow-hidden shadow-cute hover:shadow-cute-lg border border-white/80 active:scale-95 transition-all relative flex flex-col justify-end p-2 bg-gradient-to-b from-pink-100 to-pink-200 group"
-          >
-            <img
-              src="./assets/card-health.png"
-              alt="บันทึกสุขภาพ"
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform"
-            />
-          </button>
-        </div>
-
-        {/* Middle 2 Pill Buttons (Scan Slip & Voice Notes) */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {/* Scan Slip */}
-          <button
-            onClick={onOpenOCR}
-            className="w-full h-20 rounded-2xl sm:rounded-3xl overflow-hidden shadow-cute hover:shadow-cute-lg border border-white/80 active:scale-95 transition-all relative bg-gradient-to-r from-emerald-100 to-teal-100 group"
-          >
-            <img
-              src="./assets/btn-ocr.png"
-              alt="สแกนสลิปอัตโนมัติ"
-              className="w-full h-full object-contain group-hover:scale-102 transition-transform"
-            />
-          </button>
-
-          {/* Voice Notes */}
-          <button
-            onClick={onOpenVoice}
-            className="w-full h-20 rounded-2xl sm:rounded-3xl overflow-hidden shadow-cute hover:shadow-cute-lg border border-white/80 active:scale-95 transition-all relative bg-gradient-to-r from-purple-100 to-indigo-100 group"
-          >
-            <img
-              src="./assets/btn-voice.png"
-              alt="จดด้วยเสียง"
-              className="w-full h-full object-contain group-hover:scale-102 transition-transform"
-            />
-          </button>
-        </div>
-
-        {/* Dedicated Clean Budget Action Bar (Never Overlaps) */}
+      {/* SECTION 2: QUICK FUNCTION BUTTONS (1 ROW: สแกนสลิป (ซ้ายสุด) • บันทึกเงินคู่ (กลาง) • บันทึกสุขภาพ (ขวา)) */}
+      <div className="grid grid-cols-3 gap-2 px-1">
+        {/* 1. สแกนสลิปอัตโนมัติ (ซ้ายสุด) */}
         <button
-          onClick={onOpenBudget}
-          className="w-full py-2.5 px-3.5 rounded-2xl bg-gradient-to-r from-amber-100/90 via-orange-50/90 to-amber-50/90 border border-amber-200/80 shadow-sm flex items-center justify-between hover:shadow-cute active:scale-98 transition-all group"
-          title="ตั้งงบประมาณรายเดือน"
+          type="button"
+          onClick={onOpenOCR}
+          className="h-16 rounded-2xl bg-white/85 hover:bg-white border border-emerald-200/90 shadow-xs hover:shadow-cute flex items-center justify-center p-1.5 active:scale-95 transition-all group"
+          title="สแกนสลิปอัตโนมัติ"
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="text-lg shrink-0">🎯</span>
-            <div className="text-left min-w-0">
-              <span className="text-xs font-extrabold text-navy-text block truncate">ตั้งงบประมาณรายเดือน</span>
-              <span className="text-[10px] text-navy-muted block truncate">วางแผนและควบคุมการใช้จ่ายเงินคู่</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-bold text-amber-700 shrink-0 group-hover:translate-x-0.5 transition-transform ml-2">
-            <span>จัดการงบ</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </div>
+          <img
+            src="./assets/btn-ocr.png"
+            alt="สแกนสลิป"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+          />
+        </button>
+
+        {/* 2. บันทึกเงินคู่ (กลาง) */}
+        <button
+          type="button"
+          onClick={onOpenRecord}
+          className="h-16 rounded-2xl bg-white/85 hover:bg-white border border-amber-200/90 shadow-xs hover:shadow-cute flex items-center justify-center p-1.5 active:scale-95 transition-all group"
+          title="บันทึกเงินคู่"
+        >
+          <img
+            src="./assets/card-record.png"
+            alt="บันทึกเงินคู่"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+          />
+        </button>
+
+        {/* 3. บันทึกสุขภาพ (ขวาสุด) */}
+        <button
+          type="button"
+          onClick={onOpenHealth}
+          className="h-16 rounded-2xl bg-white/85 hover:bg-white border border-pink-200/90 shadow-xs hover:shadow-cute flex items-center justify-center p-1.5 active:scale-95 transition-all group"
+          title="บันทึกสุขภาพ"
+        >
+          <img
+            src="./assets/card-health.png"
+            alt="บันทึกสุขภาพ"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+          />
         </button>
       </div>
 
-      {/* SECTION 4: RECENT TRANSACTIONS */}
-      <div className="glass-panel rounded-3xl p-4 shadow-cute border border-white/80">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-base">📑</span>
-            <h3 className="font-extrabold text-sm text-navy-text">รายการรายรับ–รายจ่ายเงินคู่</h3>
+      {/* SECTION 3: RECENT TRANSACTIONS (COMPACT & CLICK TO VIEW ALL) */}
+      <div className="glass-panel rounded-3xl p-3 shadow-cute border border-white/80 bg-white/85">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm">📑</span>
+            <h3 className="font-extrabold text-xs text-navy-text">รายการรายรับ–รายจ่ายเงินคู่</h3>
           </div>
           <button
-            onClick={onNavigateToHistory}
-            className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-0.5 active:scale-95 transition-all"
+            onClick={() => setAllTransactionsModalOpen(true)}
+            className="text-xs font-bold text-sky-600 hover:text-sky-800 flex items-center gap-0.5 active:scale-95 transition-all"
           >
-            <span>ดูทั้งหมด</span>
+            <span>ดูทั้งหมด ({filteredTransactions.length})</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {filteredTransactions.length === 0 ? (
-          <div className="py-8 text-center flex flex-col items-center justify-center">
-            <div className="w-14 h-14 rounded-full bg-sky-100/80 flex items-center justify-center text-2xl mb-2 animate-bounce">
+          <div className="py-4 text-center flex flex-col items-center justify-center">
+            <div className="w-9 h-9 rounded-full bg-sky-100 flex items-center justify-center text-lg mb-1 animate-bounce">
               🌱
             </div>
             <p className="text-xs font-bold text-navy-text">ยังไม่มีรายการในช่วงเวลานี้</p>
-            <p className="text-[11px] text-navy-muted mt-0.5">กดปุ่ม "บันทึกเงินคู่" หรือพูดบันทึกได้เลยค่ะ</p>
             <button
               onClick={onOpenRecord}
-              className="mt-3 px-4 py-1.5 rounded-full bg-sky-400 hover:bg-sky-500 text-white font-bold text-xs shadow-cute active:scale-95 transition-all"
+              className="mt-2 px-3 py-1 rounded-full bg-sky-400 hover:bg-sky-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all"
             >
               + เพิ่มรายการแรก
             </button>
           </div>
         ) : (
           <div className="divide-y divide-sky-100/60">
-            {filteredTransactions.slice(0, 5).map((tx) => {
+            {filteredTransactions.slice(0, 3).map((tx) => {
+              if (!tx) return null;
               const { day, month } = formatThaiDate(tx.transaction_date);
               const isIncome = tx.transaction_type === 'income';
 
               return (
                 <div
-                  key={tx.transaction_id}
+                  key={tx.transaction_id || Math.random().toString()}
                   onClick={() => onSelectTransaction(tx)}
-                  className="py-2.5 flex items-center justify-between cursor-pointer hover:bg-sky-50/50 rounded-2xl px-2 -mx-2 transition-colors group"
+                  className="py-1.5 flex items-center justify-between cursor-pointer hover:bg-sky-50/50 rounded-xl px-1.5 -mx-1 transition-colors group"
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
                     {/* Date Badge */}
-                    <div className="w-10 h-10 rounded-xl bg-slate-100/80 border border-slate-200/60 flex flex-col items-center justify-center shrink-0">
-                      <span className="text-xs font-black text-navy-text leading-none">{day}</span>
-                      <span className="text-[9px] font-semibold text-navy-muted leading-tight">{month}</span>
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200/60 flex flex-col items-center justify-center shrink-0">
+                      <span className="text-[11px] font-black text-navy-text leading-none">{day}</span>
+                      <span className="text-[8px] font-semibold text-navy-muted leading-tight">{month}</span>
                     </div>
 
                     {/* Category Icon */}
-                    <div className="w-9 h-9 rounded-full bg-sky-100/70 border border-white flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-sky-100/70 border border-white flex items-center justify-center shrink-0">
                       {getCategoryIcon(tx.category)}
                     </div>
 
                     {/* Details */}
-                    <div className="truncate max-w-[130px] sm:max-w-[200px]">
-                      <div className="flex items-center gap-1.5">
+                    <div className="truncate min-w-0 pr-1">
+                      <div className="flex items-center gap-1">
                         <span
-                          className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
-                            isIncome
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-rose-100 text-rose-800'
+                          className={`text-[8px] font-extrabold px-1 rounded ${
+                            isIncome ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                           }`}
                         >
-                          {isIncome ? 'รายรับ' : 'รายจ่าย'}
+                          {isIncome ? 'รับ' : 'จ่าย'}
                         </span>
                         <p className="text-xs font-bold text-navy-text truncate">
-                          {tx.category}
+                          {tx.category || 'ทั่วไป'}
                         </p>
                       </div>
-                      <p className="text-[10px] text-navy-muted truncate mt-0.5">
-                        {tx.description || tx.account_id}
+                      <p className="text-[9px] text-navy-muted truncate mt-0.2">
+                        {tx.description || tx.account_id || ''}
                         {tx.user_name && ` (${tx.user_name})`}
                       </p>
                     </div>
@@ -468,14 +508,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   {/* Amount */}
                   <div className="text-right shrink-0">
                     <p
-                      className={`text-xs sm:text-sm font-extrabold ${
+                      className={`text-xs font-black ${
                         isIncome ? 'text-emerald-600' : 'text-rose-500'
                       }`}
                     >
                       {isIncome ? '+' : '-'}
-                      {tx.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      {(Number(tx.amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                     </p>
-                    <span className="text-[9px] text-navy-muted">บาท</span>
+                    <span className="text-[8px] text-navy-muted">บาท</span>
                   </div>
                 </div>
               );
@@ -483,6 +523,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         )}
       </div>
+
+      {/* ALL TRANSACTIONS MODAL (WHEN CLICKING ดูทั้งหมด) */}
+      <AllTransactionsModal
+        isOpen={allTransactionsModalOpen}
+        onClose={() => setAllTransactionsModalOpen(false)}
+        transactions={transactions}
+        onSelectTransaction={onSelectTransaction}
+      />
     </div>
   );
 };

@@ -10,7 +10,6 @@ import { BudgetModal } from './components/BudgetModal';
 import { WalletModal } from './components/WalletModal';
 import { HealthTrackerModal } from './components/HealthTrackerModal';
 import { SlipScannerModal } from './components/SlipScannerModal';
-import { VoiceModal } from './components/VoiceModal';
 import { AIAgentDrawer } from './components/AIAgentDrawer';
 
 import { 
@@ -46,7 +45,6 @@ export const App: React.FC = () => {
   const [walletModalOpen, setWalletModalOpen] = useState<boolean>(false);
   const [healthModalOpen, setHealthModalOpen] = useState<boolean>(false);
   const [ocrModalOpen, setOcrModalOpen] = useState<boolean>(false);
-  const [voiceModalOpen, setVoiceModalOpen] = useState<boolean>(false);
   const [aiDrawerOpen, setAiDrawerOpen] = useState<boolean>(false);
 
   // Initial Fetch from Google Sheets on Mount
@@ -226,29 +224,6 @@ export const App: React.FC = () => {
     );
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
-    const headers = ['ID', 'วันที่', 'ประเภท', 'หมวดหมู่', 'รายละเอียด', 'ผู้บันทึก', 'บัญชี', 'จำนวนเงิน'];
-    const rows = transactions.map((t) => [
-      t.transaction_id,
-      t.transaction_date,
-      t.transaction_type === 'income' ? 'รายรับ' : 'รายจ่าย',
-      `"${t.category}"`,
-      `"${(t.description || '').replace(/"/g, '""')}"`,
-      t.user_name || 'โจ',
-      t.account_id,
-      t.amount.toString(),
-    ]);
-
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `จดให้ไว_สำรองข้อมูล_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-  };
-
   // Reset Data to fresh Google Sheet sync
   const handleResetData = async () => {
     localStorage.clear();
@@ -316,10 +291,8 @@ export const App: React.FC = () => {
                 onOpenWallet={() => setWalletModalOpen(true)}
                 onOpenHealth={() => setHealthModalOpen(true)}
                 onOpenOCR={() => setOcrModalOpen(true)}
-                onOpenVoice={() => setVoiceModalOpen(true)}
                 onOpenBudget={() => setBudgetModalOpen(true)}
                 onNavigateToSummary={() => setCurrentTab('summary')}
-                onNavigateToHistory={() => setCurrentTab('summary')}
                 onSelectTransaction={(t) => {
                   setEditingTransaction(t);
                   setRecordModalOpen(true);
@@ -359,7 +332,6 @@ export const App: React.FC = () => {
                 onUpdateSettings={(newSettings) => setSettings((prev) => ({ ...prev, ...newSettings }))}
                 onOpenThemeModal={() => setThemeModalOpen(true)}
                 onToggleUser={handleToggleUser}
-                onExportCSV={handleExportCSV}
                 onResetData={handleResetData}
               />
             )}
@@ -420,7 +392,6 @@ export const App: React.FC = () => {
           onSave={handleSaveTransaction}
           onDelete={handleDeleteTransaction}
           editingTransaction={editingTransaction}
-          onOpenBudget={() => setBudgetModalOpen(true)}
         />
 
         <BudgetModal
@@ -457,15 +428,8 @@ export const App: React.FC = () => {
           accounts={accounts}
           existingTransactions={transactions}
           currentUser={currentUser}
+          geminiApiKey={settings.gemini_api_key}
           onConfirmTransaction={handleSaveTransaction}
-        />
-
-        <VoiceModal
-          isOpen={voiceModalOpen}
-          onClose={() => setVoiceModalOpen(false)}
-          currentUser={currentUser}
-          onSaveTransaction={handleSaveTransaction}
-          onSaveHealthRecord={handleSaveHealthRecord}
         />
 
         <AIAgentDrawer
@@ -502,10 +466,6 @@ export const App: React.FC = () => {
           onOpenOCR={() => {
             setAiDrawerOpen(false);
             setOcrModalOpen(true);
-          }}
-          onOpenVoice={() => {
-            setAiDrawerOpen(false);
-            setVoiceModalOpen(true);
           }}
           onOpenTheme={() => {
             setAiDrawerOpen(false);

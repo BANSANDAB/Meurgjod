@@ -4,13 +4,13 @@ export const DEFAULT_SPREADSHEET_ID = '10nzaDw3TWBgFp12jHwMfjY4ajFaLaU0k6PDWO8Rp
 export const DEFAULT_SHEET_URL = `https://docs.google.com/spreadsheets/d/${DEFAULT_SPREADSHEET_ID}/edit`;
 
 const STORAGE_KEYS = {
-  TRANSACTIONS: 'mruengjod_transactions_v1',
-  HEALTH_RECORDS: 'mruengjod_health_v1',
-  BUDGETS: 'mruengjod_budgets_v1',
-  ACCOUNTS: 'mruengjod_accounts_v1',
-  SETTINGS: 'mruengjod_settings_v1',
-  CATEGORIES: 'mruengjod_categories_v1',
-  LAST_FETCH: 'mruengjod_last_fetch_v1',
+  TRANSACTIONS: 'mruengjod_transactions_v2',
+  HEALTH_RECORDS: 'mruengjod_health_v2',
+  BUDGETS: 'mruengjod_budgets_v2',
+  ACCOUNTS: 'mruengjod_accounts_v2',
+  SETTINGS: 'mruengjod_settings_v2',
+  CATEGORIES: 'mruengjod_categories_v2',
+  LAST_FETCH: 'mruengjod_last_fetch_v2',
 };
 
 // Default Categories with cute icons and pastel colors
@@ -93,14 +93,36 @@ function parseCSV(text: string): string[][] {
 export class GoogleSheetsService {
   private static parseExistingDate(dStr: string): string {
     if (!dStr) return new Date().toISOString();
-    // Format could be "25/05/2026 10:38" or "2026-08-27"
-    if (dStr.includes('/')) {
-      const [datePart, timePart] = dStr.split(' ');
-      const [d, m, y] = datePart.split('/');
-      const time = timePart || '12:00';
-      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T${time}:00`;
+    const trimmed = dStr.trim();
+    // 1. If DD/MM/YYYY or DD/MM/YYYY HH:mm or DD/MM/YYYY H:mm:ss
+    if (trimmed.includes('/')) {
+      const [dPart, tPart] = trimmed.split(' ');
+      const parts = dPart.split('/');
+      if (parts.length === 3) {
+        let [d, m, y] = parts;
+        if (parseInt(y, 10) > 2500) y = (parseInt(y, 10) - 543).toString();
+        const timeParts = tPart ? tPart.split(':') : ['12', '00', '00'];
+        const h = timeParts[0].padStart(2, '0');
+        const min = (timeParts[1] || '00').padStart(2, '0');
+        const s = (timeParts[2] || '00').padStart(2, '0');
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T${h}:${min}:${s}`;
+      }
     }
-    return dStr.includes('T') ? dStr : `${dStr}T12:00:00`;
+    // 2. If YYYY-MM-DD or YYYY-MM-DD HH:mm:ss
+    if (trimmed.includes('-')) {
+      if (trimmed.includes(' ')) {
+        const [dPart, tPart] = trimmed.split(' ');
+        const timeParts = tPart ? tPart.split(':') : ['12', '00', '00'];
+        const h = timeParts[0].padStart(2, '0');
+        const min = (timeParts[1] || '00').padStart(2, '0');
+        const s = (timeParts[2] || '00').padStart(2, '0');
+        return `${dPart}T${h}:${min}:${s}`;
+      }
+      if (trimmed.includes('T')) return trimmed;
+      return `${trimmed}T12:00:00`;
+    }
+    const d = new Date(trimmed);
+    return !isNaN(d.getTime()) ? d.toISOString() : new Date().toISOString();
   }
 
   /**
@@ -276,39 +298,86 @@ export class GoogleSheetsService {
 
   // Local Storage getters & setters
   static getLocalTransactions(): Transaction[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-    return raw ? JSON.parse(raw) : [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((t): t is Transaction => !!t && typeof t === 'object').map((t) => ({
+        ...t,
+        amount: Number(t.amount) || 0,
+        category: t.category || 'รายจ่ายอื่นๆ',
+        description: t.description || '',
+        transaction_date: t.transaction_date || new Date().toISOString()
+      }));
+    } catch {
+      return [];
+    }
   }
 
   static setLocalTransactions(txs: Transaction[]) {
-    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(txs));
+    try {
+      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(txs));
+    } catch (e) {
+      console.warn('Failed to save local transactions:', e);
+    }
   }
 
   static getLocalHealthRecords(): HealthRecord[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.HEALTH_RECORDS);
-    return raw ? JSON.parse(raw) : [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.HEALTH_RECORDS);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch {
+      return [];
+    }
   }
 
   static setLocalHealthRecords(records: HealthRecord[]) {
-    localStorage.setItem(STORAGE_KEYS.HEALTH_RECORDS, JSON.stringify(records));
+    try {
+      localStorage.setItem(STORAGE_KEYS.HEALTH_RECORDS, JSON.stringify(records));
+    } catch (e) {
+      console.warn('Failed to save local health records:', e);
+    }
   }
 
   static getLocalBudgets(): Budget[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.BUDGETS);
-    return raw ? JSON.parse(raw) : DEFAULT_BUDGETS;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.BUDGETS);
+      if (!raw) return DEFAULT_BUDGETS;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_BUDGETS;
+    } catch {
+      return DEFAULT_BUDGETS;
+    }
   }
 
   static setLocalBudgets(budgets: Budget[]) {
-    localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(budgets));
+    try {
+      localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(budgets));
+    } catch (e) {
+      console.warn('Failed to save local budgets:', e);
+    }
   }
 
   static getLocalAccounts(): Account[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
-    return raw ? JSON.parse(raw) : DEFAULT_ACCOUNTS;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
+      if (!raw) return DEFAULT_ACCOUNTS;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_ACCOUNTS;
+    } catch {
+      return DEFAULT_ACCOUNTS;
+    }
   }
 
   static setLocalAccounts(accs: Account[]) {
-    localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accs));
+    try {
+      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accs));
+    } catch (e) {
+      console.warn('Failed to save local accounts:', e);
+    }
   }
 
   static getLocalSettings(): AppSettings {
