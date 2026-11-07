@@ -47,29 +47,40 @@ export const App: React.FC = () => {
   const [ocrModalOpen, setOcrModalOpen] = useState<boolean>(false);
   const [aiDrawerOpen, setAiDrawerOpen] = useState<boolean>(false);
 
-  // Initial Fetch from Google Sheets on Mount
+  // Initial Fetch from Google Sheets on Mount (Always fetch latest data to prevent data loss)
   useEffect(() => {
     const initData = async () => {
-      // If transactions are empty, fetch live from Google Sheets
-      if (transactions.length === 0) {
-        setIsLoading(true);
-        try {
-          const liveData = await GoogleSheetsService.fetchFromGoogleSheets();
-          if (liveData.transactions.length > 0) {
-            setTransactions(liveData.transactions);
-            GoogleSheetsService.setLocalTransactions(liveData.transactions);
-          }
-          if (liveData.healthRecords.length > 0) {
-            setHealthRecords(liveData.healthRecords);
-            GoogleSheetsService.setLocalHealthRecords(liveData.healthRecords);
-          }
-          setSyncStatusText(`โหลดข้อมูลชีตสำเร็จ (${liveData.transactions.length} รายการ)`);
-        } catch (err) {
-          console.warn('Initial Google Sheet fetch error:', err);
-          setSyncStatusText('ทำงานในโหมดออฟไลน์');
-        } finally {
-          setIsLoading(false);
+      setIsLoading(true);
+      try {
+        const liveData = await GoogleSheetsService.fetchFromGoogleSheets();
+        if (liveData.transactions.length > 0) {
+          setTransactions((prev) => {
+            const sheetIds = new Set(liveData.transactions.map((t) => t.transaction_id));
+            const localOnly = prev.filter((t) => !sheetIds.has(t.transaction_id));
+            const merged = [...localOnly, ...liveData.transactions].sort(
+              (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime()
+            );
+            GoogleSheetsService.setLocalTransactions(merged);
+            return merged;
+          });
         }
+        if (liveData.healthRecords.length > 0) {
+          setHealthRecords((prev) => {
+            const sheetIds = new Set(liveData.healthRecords.map((r) => r.health_id));
+            const localOnly = prev.filter((r) => !sheetIds.has(r.health_id));
+            const merged = [...localOnly, ...liveData.healthRecords].sort(
+              (a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime()
+            );
+            GoogleSheetsService.setLocalHealthRecords(merged);
+            return merged;
+          });
+        }
+        setSyncStatusText(`โหลดข้อมูลชีตสำเร็จ (${liveData.transactions.length} รายการ)`);
+      } catch (err) {
+        console.warn('Initial Google Sheet fetch error:', err);
+        setSyncStatusText('ทำงานในโหมดออฟไลน์');
+      } finally {
+        setIsLoading(false);
       }
     };
     initData();
@@ -224,18 +235,6 @@ export const App: React.FC = () => {
     );
   };
 
-  // Reset Data to fresh Google Sheet sync
-  const handleResetData = async () => {
-    localStorage.clear();
-    setTransactions([]);
-    setHealthRecords([]);
-    setBudgets(DEFAULT_BUDGETS);
-    setAccounts(DEFAULT_ACCOUNTS);
-    setCategories(DEFAULT_CATEGORIES);
-    setSettings(DEFAULT_SETTINGS);
-    await handleRefreshFromSheet();
-  };
-
   return (
     <div className={`theme-${settings.selected_theme} min-h-screen text-navy-text relative selection:bg-sky-200 transition-colors duration-500`}>
       {/* Background Graphic - Sky theme clouds */}
@@ -332,7 +331,6 @@ export const App: React.FC = () => {
                 onUpdateSettings={(newSettings) => setSettings((prev) => ({ ...prev, ...newSettings }))}
                 onOpenThemeModal={() => setThemeModalOpen(true)}
                 onToggleUser={handleToggleUser}
-                onResetData={handleResetData}
               />
             )}
           </div>

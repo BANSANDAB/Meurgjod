@@ -299,7 +299,10 @@ export class GoogleSheetsService {
   // Local Storage getters & setters
   static getLocalTransactions(): Transaction[] {
     try {
-      const raw = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+      let raw = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+      if (!raw) {
+        raw = localStorage.getItem('mruengjod_transactions_backup') || localStorage.getItem('mruengjod_transactions');
+      }
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
@@ -317,7 +320,11 @@ export class GoogleSheetsService {
 
   static setLocalTransactions(txs: Transaction[]) {
     try {
-      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(txs));
+      const json = JSON.stringify(txs);
+      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, json);
+      if (txs.length > 0) {
+        localStorage.setItem('mruengjod_transactions_backup', json);
+      }
     } catch (e) {
       console.warn('Failed to save local transactions:', e);
     }
@@ -325,7 +332,10 @@ export class GoogleSheetsService {
 
   static getLocalHealthRecords(): HealthRecord[] {
     try {
-      const raw = localStorage.getItem(STORAGE_KEYS.HEALTH_RECORDS);
+      let raw = localStorage.getItem(STORAGE_KEYS.HEALTH_RECORDS);
+      if (!raw) {
+        raw = localStorage.getItem('mruengjod_health_backup') || localStorage.getItem('mruengjod_health');
+      }
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
@@ -336,7 +346,11 @@ export class GoogleSheetsService {
 
   static setLocalHealthRecords(records: HealthRecord[]) {
     try {
-      localStorage.setItem(STORAGE_KEYS.HEALTH_RECORDS, JSON.stringify(records));
+      const json = JSON.stringify(records);
+      localStorage.setItem(STORAGE_KEYS.HEALTH_RECORDS, json);
+      if (records.length > 0) {
+        localStorage.setItem('mruengjod_health_backup', json);
+      }
     } catch (e) {
       console.warn('Failed to save local health records:', e);
     }

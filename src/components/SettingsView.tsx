@@ -24,7 +24,6 @@ interface SettingsViewProps {
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
   onOpenThemeModal: () => void;
   onToggleUser: () => void;
-  onResetData: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -33,7 +32,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateSettings,
   onOpenThemeModal,
   onToggleUser,
-  onResetData,
 }) => {
   const [gasUrl, setGasUrl] = useState<string>(settings.gas_webapp_url || '');
   const [geminiKey, setGeminiKey] = useState<string>(settings.gemini_api_key || '');
@@ -244,24 +242,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             className="w-5 h-5 accent-sky-500 rounded cursor-pointer"
           />
         </div>
-      </div>
-
-      {/* Reset Cache */}
-      <div className="glass-panel rounded-3xl p-4 shadow-cute border border-white/80 space-y-2">
-        <button
-          onClick={() => {
-            if (window.confirm('คุณต้องการรีเซ็ตข้อมูลแคชในเครื่องกลับเป็นค่าเริ่มต้นจาก Google Sheets ใช่หรือไม่?')) {
-              onResetData();
-            }
-          }}
-          className="w-full p-3 rounded-2xl bg-rose-50 hover:bg-rose-100 flex items-center justify-between text-xs font-bold text-rose-700 border border-rose-200 active:scale-98 transition-all"
-        >
-          <div className="flex items-center gap-2.5">
-            <Trash2 className="w-4 h-4" />
-            <span>รีเซ็ตแคชข้อมูลในเครื่อง (Reset Local Cache)</span>
-          </div>
-          <span className="text-rose-400">&gt;</span>
-        </button>
       </div>
     </div>
   );

@@ -26,8 +26,7 @@ class RootErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundar
     console.error('App render error:', error, errorInfo);
   }
 
-  handleClearAndReload = () => {
-    localStorage.clear();
+  handleReload = () => {
     window.location.reload();
   };
 
@@ -39,15 +38,15 @@ class RootErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundar
             <div className="w-16 h-16 bg-rose-500/20 text-rose-400 rounded-2xl mx-auto flex items-center justify-center text-3xl">
               ⚠️
             </div>
-            <h2 className="text-lg font-bold text-rose-300">เกิดข้อผิดพลาดในการโหลดข้อมูล</h2>
+            <h2 className="text-lg font-bold text-rose-300">เกิดข้อผิดพลาดในการแสดงผล</h2>
             <p className="text-xs text-slate-300 bg-slate-950 p-3 rounded-xl font-mono text-left overflow-auto max-h-36">
               {this.state.error?.message || 'Unknown Error'}
             </p>
             <button
-              onClick={this.handleClearAndReload}
+              onClick={this.handleReload}
               className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold text-sm rounded-2xl shadow-lg transition-all"
             >
-              ล้างข้อมูลแคชและโหลดใหม่ (Clear Cache & Reload)
+              โหลดหน้าเว็บใหม่ (Reload Page)
             </button>
           </div>
         </div>

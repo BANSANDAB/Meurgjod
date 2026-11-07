@@ -377,7 +377,9 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </div>
               <div className="text-left min-w-0">
                 <p className="text-[11px] font-bold text-navy-text truncate">ดูย้อนหลัง</p>
-                <p className="text-[9px] text-navy-muted truncate">ตรวจประวัติ ({filteredTransactions.length})</p>
+                <p className="text-[9px] text-navy-muted truncate">
+                  ตรวจประวัติ ({filteredTransactions.length > 0 ? filteredTransactions.length : accountTransactions.length})
+                </p>
               </div>
             </div>
             <ChevronRight className="w-3.5 h-3.5 text-navy-muted group-hover:translate-x-0.5 transition-transform shrink-0" />
@@ -431,98 +433,114 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
       </div>
 
       {/* SECTION 3: RECENT TRANSACTIONS (COMPACT & CLICK TO VIEW ALL) */}
-      <div className="glass-panel rounded-3xl p-3 shadow-cute border border-white/80 bg-white/85">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm">📑</span>
-            <h3 className="font-extrabold text-xs text-navy-text">รายการรายรับ–รายจ่ายเงินคู่</h3>
-          </div>
-          <button
-            onClick={() => setAllTransactionsModalOpen(true)}
-            className="text-xs font-bold text-sky-600 hover:text-sky-800 flex items-center gap-0.5 active:scale-95 transition-all"
-          >
-            <span>ดูทั้งหมด ({filteredTransactions.length})</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      {(() => {
+        const isShowingFallbackRecent = filteredTransactions.length === 0 && accountTransactions.length > 0;
+        const displayTransactions = filteredTransactions.length > 0 ? filteredTransactions.slice(0, 4) : accountTransactions.slice(0, 4);
+        const totalDisplayCount = filteredTransactions.length > 0 ? filteredTransactions.length : accountTransactions.length;
 
-        {filteredTransactions.length === 0 ? (
-          <div className="py-4 text-center flex flex-col items-center justify-center">
-            <div className="w-9 h-9 rounded-full bg-sky-100 flex items-center justify-center text-lg mb-1 animate-bounce">
-              🌱
+        return (
+          <div className="glass-panel rounded-3xl p-3 shadow-cute border border-white/80 bg-white/85">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-sm shrink-0">📑</span>
+                <h3 className="font-extrabold text-xs text-navy-text truncate">
+                  {isShowingFallbackRecent ? 'รายการเงินคู่ล่าสุดที่บันทึกไว้' : 'รายการรายรับ–รายจ่ายเงินคู่'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setAllTransactionsModalOpen(true)}
+                className="text-xs font-bold text-sky-600 hover:text-sky-800 flex items-center gap-0.5 active:scale-95 transition-all shrink-0 ml-1"
+              >
+                <span>ดูทั้งหมด ({totalDisplayCount})</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <p className="text-xs font-bold text-navy-text">ยังไม่มีรายการในช่วงเวลานี้</p>
-            <button
-              onClick={onOpenRecord}
-              className="mt-2 px-3 py-1 rounded-full bg-sky-400 hover:bg-sky-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all"
-            >
-              + เพิ่มรายการแรก
-            </button>
-          </div>
-        ) : (
-          <div className="divide-y divide-sky-100/60">
-            {filteredTransactions.slice(0, 3).map((tx) => {
-              if (!tx) return null;
-              const { day, month } = formatThaiDate(tx.transaction_date);
-              const isIncome = tx.transaction_type === 'income';
 
-              return (
-                <div
-                  key={tx.transaction_id || Math.random().toString()}
-                  onClick={() => onSelectTransaction(tx)}
-                  className="py-1.5 flex items-center justify-between cursor-pointer hover:bg-sky-50/50 rounded-xl px-1.5 -mx-1 transition-colors group"
+            {isShowingFallbackRecent && (
+              <div className="mb-2 px-2.5 py-1 rounded-xl bg-sky-50/90 border border-sky-100 flex items-center justify-between text-[10px] text-sky-800">
+                <span className="font-semibold">💡 รอบเดือนนี้ยังไม่มีรายการใหม่ ดึงรายการล่าสุดมาแสดง:</span>
+              </div>
+            )}
+
+            {displayTransactions.length === 0 ? (
+              <div className="py-4 text-center flex flex-col items-center justify-center">
+                <div className="w-9 h-9 rounded-full bg-sky-100 flex items-center justify-center text-lg mb-1 animate-bounce">
+                  🌱
+                </div>
+                <p className="text-xs font-bold text-navy-text">ยังไม่มีรายการในระบบ</p>
+                <button
+                  onClick={onOpenRecord}
+                  className="mt-2 px-3 py-1 rounded-full bg-sky-400 hover:bg-sky-500 text-white font-bold text-xs shadow-xs active:scale-95 transition-all"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    {/* Date Badge */}
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200/60 flex flex-col items-center justify-center shrink-0">
-                      <span className="text-[11px] font-black text-navy-text leading-none">{day}</span>
-                      <span className="text-[8px] font-semibold text-navy-muted leading-tight">{month}</span>
-                    </div>
+                  + เพิ่มรายการแรก
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y divide-sky-100/60">
+                {displayTransactions.map((tx) => {
+                  if (!tx) return null;
+                  const { day, month } = formatThaiDate(tx.transaction_date);
+                  const isIncome = tx.transaction_type === 'income';
 
-                    {/* Category Icon */}
-                    <div className="w-7 h-7 rounded-full bg-sky-100/70 border border-white flex items-center justify-center shrink-0">
-                      {getCategoryIcon(tx.category)}
-                    </div>
+                  return (
+                    <div
+                      key={tx.transaction_id || Math.random().toString()}
+                      onClick={() => onSelectTransaction(tx)}
+                      className="py-1.5 flex items-center justify-between cursor-pointer hover:bg-sky-50/50 rounded-xl px-1.5 -mx-1 transition-colors group"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {/* Date Badge */}
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200/60 flex flex-col items-center justify-center shrink-0">
+                          <span className="text-[11px] font-black text-navy-text leading-none">{day}</span>
+                          <span className="text-[8px] font-semibold text-navy-muted leading-tight">{month}</span>
+                        </div>
 
-                    {/* Details */}
-                    <div className="truncate min-w-0 pr-1">
-                      <div className="flex items-center gap-1">
-                        <span
-                          className={`text-[8px] font-extrabold px-1 rounded ${
-                            isIncome ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        {/* Category Icon */}
+                        <div className="w-7 h-7 rounded-full bg-sky-100/70 border border-white flex items-center justify-center shrink-0">
+                          {getCategoryIcon(tx.category)}
+                        </div>
+
+                        {/* Details */}
+                        <div className="truncate min-w-0 pr-1">
+                          <div className="flex items-center gap-1">
+                            <span
+                              className={`text-[8px] font-extrabold px-1 rounded ${
+                                isIncome ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              {isIncome ? 'รับ' : 'จ่าย'}
+                            </span>
+                            <p className="text-xs font-bold text-navy-text truncate">
+                              {tx.category || 'ทั่วไป'}
+                            </p>
+                          </div>
+                          <p className="text-[9px] text-navy-muted truncate mt-0.2">
+                            {tx.description || tx.account_id || ''}
+                            {tx.user_name && ` (${tx.user_name})`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Amount */}
+                      <div className="text-right shrink-0">
+                        <p
+                          className={`text-xs font-black ${
+                            isIncome ? 'text-emerald-600' : 'text-rose-500'
                           }`}
                         >
-                          {isIncome ? 'รับ' : 'จ่าย'}
-                        </span>
-                        <p className="text-xs font-bold text-navy-text truncate">
-                          {tx.category || 'ทั่วไป'}
+                          {isIncome ? '+' : '-'}
+                          {(Number(tx.amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                         </p>
+                        <span className="text-[8px] text-navy-muted">บาท</span>
                       </div>
-                      <p className="text-[9px] text-navy-muted truncate mt-0.2">
-                        {tx.description || tx.account_id || ''}
-                        {tx.user_name && ` (${tx.user_name})`}
-                      </p>
                     </div>
-                  </div>
-
-                  {/* Amount */}
-                  <div className="text-right shrink-0">
-                    <p
-                      className={`text-xs font-black ${
-                        isIncome ? 'text-emerald-600' : 'text-rose-500'
-                      }`}
-                    >
-                      {isIncome ? '+' : '-'}
-                      {(Number(tx.amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                    </p>
-                    <span className="text-[8px] text-navy-muted">บาท</span>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* ALL TRANSACTIONS MODAL (WHEN CLICKING ดูทั้งหมด) */}
       <AllTransactionsModal
